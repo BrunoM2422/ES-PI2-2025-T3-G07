@@ -1,5 +1,4 @@
 
-/* Conteúdo principal */
 #content {
     flex: 1;
     display: flex;
@@ -15,7 +14,6 @@
     font-weight: bold;
 }
 
-/* Formulário de login */
 form {
     display: flex;
     flex-direction: column;
@@ -45,21 +43,3 @@ button:hover {
     background-color: #005fa3;
 }
 
-/* Links adicionais (recuperar/criar conta) */
-#recoverPassword {
-    padding-right: 20px;
-}
-
-#content div {
-    margin-top: 15px;
-}
-
-#content a {
-    color: #0077cc;
-    text-decoration: none;
-    font-size: 14px;
-}
-
-#content a:hover {
-    text-decoration: underline;
-}
