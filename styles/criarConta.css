@@ -43,3 +43,7 @@ button:hover {
     background-color: #005fa3;
 }
 
+.marker {
+    color:red;
+    font-size:20px;
+}
