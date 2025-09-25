@@ -1,0 +1,45 @@
+#content {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.ajuda-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    text-align: left;
+}
+
+.ajuda-form label {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.ajuda-form input,
+.ajuda-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.ajuda-form button {
+    padding: 12px;
+    background: #0073e6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.ajuda-form button:hover {
+    background: #005bb5;
+}
