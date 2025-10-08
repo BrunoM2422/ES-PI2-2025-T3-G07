@@ -1,0 +1,35 @@
+{
+    "name": "es-pi2-2025-t3-g07",
+    "version": "1.0.0",
+    "main": "server.js",
+    "license": "ISC",
+    "scripts": {
+      "start": "node server.js"
+    }
+  }
+  
+
+{
+    "name": "es-pi2-2025-t3-g07",
+    "version": "1.0.0",
+    "main": "server.js",
+    "license": "ISC",
+    "description": "Repositório para a criação do Projeto Integrador 2 - NotaDez",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node server.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/BrunoM2422/ES-PI2-2025-T3-G07.git"
+    },
+    "keywords": [],
+    "author": "",
+    "bugs": {
+        "url": "https://github.com/BrunoM2422/ES-PI2-2025-T3-G07/issues"
+    },
+    "homepage": "https://github.com/BrunoM2422/ES-PI2-2025-T3-G07#readme",
+    "dependencies": {
+        "express": "^5.1.0"
+    }
+}

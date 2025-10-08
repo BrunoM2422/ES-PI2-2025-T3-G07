@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Conta Criada com Sucesso</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            text-align: center;
+            padding: 50px;
+        }
+        .card {
+            background: white;
+            display: inline-block;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #2ecc71;
+        }
+        p {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Conta criada com sucesso! 🎉</h2>
+        <div id="user-info"></div>
+        <button onclick="window.location.href='index.html'">Voltar</button>
+    </div>
+
+    <script>
+        const userData = JSON.parse(localStorage.getItem('lastRegisteredUser'));
+
+        if (userData) {
+            const infoDiv = document.getElementById('user-info');
+            infoDiv.innerHTML = `
+                <p><strong>Nome:</strong> ${userData.name}</p>
+                <p><strong>Sobrenome:</strong> ${userData.surname}</p>
+                <p><strong>Email:</strong> ${userData.email}</p>
+                <p><strong>Telefone:</strong> ${userData.telephone}</p>
+            `;
+        } else {
+            document.getElementById('user-info').innerHTML = '<p>Nenhum dado encontrado.</p>';
+        }
+    </script>
+</body>
+</html>
