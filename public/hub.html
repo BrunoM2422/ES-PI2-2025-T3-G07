@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotaDez</title>
+    <link rel="stylesheet" href="./styles/main.css">
+    <link rel="stylesheet" href="./styles/hub.css">
+    <script defer src="./scripts/hub.js"></script>
+</head>
+<body>
+    <div id="wrapper">
+        <header id="header">
+            <a href="index.html"><img src="./images/notadezlogo2.png" alt="logo" class="header-logo"></a>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Sair</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main id="content">
+            <h2 id="page-title">Instituições e Cursos Cadastrados</h2>
+            
+            <button id="back-button" class="hidden">← Voltar</button>
+            <button id="add-button">+ Adicionar Instituição</button>
+
+            <table id="data-table">
+                <thead>
+                    <tr id="table-header">
+                        <th>Nome da Instituição</th>
+                        <th>Curso</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Linhas dinâmicas -->
+                </tbody>
+            </table>
+            <p id="no-records">Nenhum registro encontrado.</p>
+        </main>
+
+        <!-- Modal de Adição -->
+        <div id="modal" class="modal hidden">
+            <div class="modal-content">
+                <span id="close-modal">&times;</span>
+                <h3 id="modal-title">Adicionar Instituição</h3>
+                <form id="modal-form">
+                    <!-- Inputs dinâmicos -->
+                </form>
+            </div>
+        </div>
+
+        <footer id="footer">
+            <div class="footer-content">
+                <ul class="footer-links">
+                    <li><a href="sobre.html">Sobre</a></li>
+                    <li><a href="contato.html">Contato</a></li>
+                    <li><a href="ajuda.html">Ajuda</a></li>
+                </ul>
+                <img src="./images/notadezlogo1.png" alt="logo" class="footer-logo">
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
