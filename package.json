@@ -2,12 +2,15 @@
   "name": "es-pi2-2025-t3-g07",
   "version": "1.0.0",
   "type": "module",
-  "main": "server.js",
+  "main": "dist/server.js",
   "license": "ISC",
   "description": "Repositório para a criação do Projeto Integrador 2 - NotaDez",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node dist/server.js",
+    "dev": "tsc && node dist/server.js",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "dev:watch": "tsc -w & node dist/server.js"
   },
   "repository": {
     "type": "git",
@@ -24,5 +27,13 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "oracledb": "^6.9.0"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.9.2",
+    "@types/oracledb": "^6.10.0",
+    "typescript": "^5.9.3"
   }
 }
