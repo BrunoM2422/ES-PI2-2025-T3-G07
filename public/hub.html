@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NotaDez</title>
+    <title>NotaDez | Hub do Professor</title>
     <link rel="stylesheet" href="./styles/main.css">
     <link rel="stylesheet" href="./styles/hub.css">
     <script defer src="./scripts/hub.js"></script>
@@ -20,26 +20,33 @@
         </header>
 
         <main id="content">
-            <h2 id="page-title">Instituições e Cursos Cadastrados</h2>
-            
-            <button id="back-button" class="hidden">← Voltar</button>
-            <button id="add-button">+ Adicionar Instituição</button>
+            <section class="hub-container">
+                <div class="hub-header">
+                    <h2 id="page-title">Instituições e Cursos Cadastrados</h2>
+                    <div class="hub-actions">
+                        <button id="back-button" class="hidden">← Voltar</button>
+                        <button id="add-button">+ Adicionar Instituição</button>
+                    </div>
+                </div>
 
-            <table id="data-table">
-                <thead>
-                    <tr id="table-header">
-                        <th>Nome da Instituição</th>
-                        <th>Curso</th>
-                    </tr>
-                </thead>
-                <tbody id="table-body">
-                    <!-- Linhas dinâmicas -->
-                </tbody>
-            </table>
-            <p id="no-records">Nenhum registro encontrado.</p>
+                <div class="table-wrapper">
+                    <table id="data-table">
+                        <thead>
+                            <tr id="table-header">
+                                <th>Nome da Instituição</th>
+                                <th>Curso</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Linhas dinâmicas -->
+                        </tbody>
+                    </table>
+                    <p id="no-records">Nenhum registro encontrado.</p>
+                </div>
+            </section>
         </main>
 
-        <!-- Modal de Adição -->
+        <!-- Modal -->
         <div id="modal" class="modal hidden">
             <div class="modal-content">
                 <span id="close-modal">&times;</span>

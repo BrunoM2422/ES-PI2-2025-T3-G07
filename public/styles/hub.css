@@ -1,84 +1,114 @@
-/* ====== HUB CSS ====== */
-/* Este arquivo apenas ajusta o layout da página de controle (instituições, cursos, etc.) */
+/* ========== HUB PAGE CUSTOM STYLES ========== */
 
-/* ====== Conteúdo principal ====== */
+/* ===== Layout geral ===== */
 #content {
     flex: 1;
-    padding: 20px;
-    text-align: center;
-    background-color: #f9fafc;
+    padding: 40px 20px;
+    background: #f5f8fc;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 80vh;
+}
+
+.hub-container {
+    width: 100%;
+    max-width: 950px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    padding: 30px;
+}
+
+/* ===== Cabeçalho ===== */
+.hub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #0077cc;
+    padding-bottom: 10px;
 }
 
 #page-title {
     color: #003366;
-    margin-bottom: 20px;
+    font-size: 22px;
+    font-weight: 700;
 }
 
-/* ====== Botões ====== */
-#add-button, #back-button {
-    background-color: #0077cc;
-    color: #fff;
+.hub-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ===== Botões principais ===== */
+#add-button,
+#back-button {
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 10px 18px;
-    margin: 10px 8px;
-    cursor: pointer;
     font-size: 15px;
     font-weight: 600;
-    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    transition: all 0.25s ease;
 }
 
-#add-button:hover, #back-button:hover {
+#add-button {
+    background-color: #0077cc;
+    color: #fff;
+}
+
+#add-button:hover {
     background-color: #005fa3;
+    transform: translateY(-2px);
 }
 
 #back-button {
-    background-color: #999;
+    background-color: #ccc;
+    color: #333;
 }
 
 #back-button:hover {
-    background-color: #777;
+    background-color: #999;
+    transform: translateY(-2px);
 }
 
 .hidden {
     display: none !important;
 }
 
-/* ====== Tabelas ====== */
+/* ===== Tabela ===== */
+.table-wrapper {
+    overflow-x: auto;
+}
+
 #data-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
-    background: #fff;
     border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-#data-table th, #data-table td {
-    border: 1px solid #ddd;
-    padding: 12px;
-    font-size: 15px;
-    text-align: left;
+    margin-top: 10px;
 }
 
 #data-table th {
     background-color: #0077cc;
     color: white;
+    padding: 14px;
+    text-align: left;
+    font-weight: 600;
 }
 
-#data-table tr:hover {
-    background-color: #f3faff;
-    cursor: pointer;
+#data-table td {
+    background-color: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 14px;
+    font-size: 15px;
 }
 
-#no-records {
-    color: #666;
-    margin-top: 15px;
-    font-size: 14px;
+#data-table tr:hover td {
+    background-color: #f0f8ff;
 }
 
-/* ====== Modal ====== */
+/* ===== Modal ===== */
 .modal {
     position: fixed;
     top: 0;
@@ -89,69 +119,198 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 2000;
 }
 
-.modal.hidden {
-    display: none;
-}
+.modal.hidden { display: none; }
 
 .modal-content {
     background-color: #fff;
+    border-radius: 12px;
     padding: 25px;
-    border-radius: 10px;
-    width: 350px;
-    text-align: left;
+    width: 360px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
     position: relative;
-    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
-    animation: fadeIn 0.25s ease-in-out;
+    animation: modalFadeIn 0.25s ease;
 }
 
 #close-modal {
     position: absolute;
-    top: 8px;
-    right: 12px;
-    font-size: 20px;
+    top: 10px;
+    right: 14px;
+    font-size: 22px;
     cursor: pointer;
-    color: #666;
+    color: #777;
 }
 
-#close-modal:hover {
-    color: #000;
-}
+#close-modal:hover { color: #000; }
 
 .modal-content h3 {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     color: #0077cc;
+    font-size: 18px;
 }
 
 .modal-content input {
     width: 100%;
-    margin: 10px 0;
-    padding: 8px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 6px;
     border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 14px;
 }
 
 .modal-content button {
+    width: 100%;
     background-color: #0077cc;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-content button:hover { background-color: #005fa3; }
+
+/* ===== Médias e Componentes ===== */
+#grading-div {
+    margin-top: 25px;
+    padding: 20px;
+    background-color: #f0f7ff;
+    border-radius: 10px;
+    border: 1px solid #cce3f9;
+    text-align: center;
+}
+
+#grading-div h3 {
+    color: #005fa3;
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+#grading-div p {
+    font-size: 15px;
+    margin: 6px 0;
+}
+
+#grading-div ul {
+    list-style: none;
+    padding: 0;
+    margin: 10px auto 15px;
+    max-width: 400px;
+    text-align: left;
+}
+
+#grading-div li {
+    padding: 8px 10px;
+    font-size: 14px;
+    border-bottom: 1px solid #e5edf5;
+}
+
+/* ===== Botões média/componente ===== */
+/* Botão de média sem borda e centralizado */
+#add-average {
+    background: linear-gradient(135deg, #0077cc, #0099ff);
+    color: #fff;
+    border: none; /* Remove qualquer borda */
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 10px auto; /* centraliza horizontalmente */
+    display: block; /* necessário para centralizar com margin auto */
+    box-shadow: 0 3px 8px rgba(0, 119, 204, 0.25);
+    transition: all 0.25s ease-in-out;
+}
+
+#add-average:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, #005fa3, #0077cc);
+    box-shadow: 0 5px 12px rgba(0, 119, 204, 0.35);
+}
+
+#add-average:active {
+    transform: scale(0.97);
+    background: linear-gradient(135deg, #004f8a, #006fb8);
+}
+
+/* Centraliza o conteúdo do modal */
+#modal-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* centraliza horizontalmente */
+    gap: 10px; /* espaço entre elementos */
+}
+
+#modal-form label {
+    width: 100%;
+    text-align: center; /* centraliza o texto das opções */
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Botão "Adicionar Componente" */
+#add-comp {
+    display: block;
+    margin: 20px auto 0 auto; /* centraliza horizontalmente */
+    background: linear-gradient(135deg, #00aaff, #0077cc);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 25px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 15px rgba(0, 119, 204, 0.3);
+    transition: all 0.3s ease-in-out;
+    text-align: center;
+}
+
+#add-comp:hover {
+    background: linear-gradient(135deg, #0077cc, #005fa3);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgba(0, 119, 204, 0.4);
+}
+
+#add-comp:active {
+    transform: scale(0.97);
+    background: linear-gradient(135deg, #005fa3, #004f8a);
+    box-shadow: 0 4px 10px rgba(0, 119, 204, 0.25);
+}
+
+#no-records {
+    margin-top: 18px;
+    color: #777;
+    font-style: italic;
+}
+
+.btn-primary {
+    background: #4e73df;
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 10px;
     cursor: pointer;
-    width: 100%;
-    font-weight: 600;
-    transition: background 0.2s;
+    font-weight: 500;
+    transition: background 0.3s ease;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.modal-content button:hover {
-    background-color: #005fa3;
+.btn-primary:hover {
+    background: #2e59d9;
 }
 
-/* ====== Animações ====== */
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.97); }
-    to { opacity: 1; transform: scale(1); }
+
+
+
+/* ===== Animação ===== */
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
