@@ -30,6 +30,16 @@ app.use("/styles", express.static(path.join(PUBLIC_DIR, "styles")));
 app.use("/images", express.static(path.join(PUBLIC_DIR, "images")));
 app.use("/scripts", express.static(path.join(PUBLIC_DIR, "scripts")));
 
+
+//Criação de um interface conta
+interface CreateAccount{
+  name: string;
+  surname:string;
+  email: string;
+  telefone:string;
+  password:string;
+}
+
 // ===================================================
 //  Criação de tabelas
 // ===================================================
