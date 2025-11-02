@@ -1,3 +1,16 @@
+/*
+    Autores:
+        Bruno Lenitta Machado
+        Nicolas Mitjans Nunes
+*/
+/*
+    Nesta páginas defini-se o padrão estético do site.
+    Serve como base e referência para as demais páginas,
+    Assim, todas as páginas tem este:
+    <link rel="StyleSheet" href="./styles/main.css">
+    mais um específico para a caracteristica que distingue
+    uma página da outra.
+*/
 #header {
     background-color: #0077cc;
     color: white;

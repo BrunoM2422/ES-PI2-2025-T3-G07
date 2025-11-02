@@ -7,6 +7,11 @@ import { fileURLToPath } from "url";
 import oracledb from "oracledb";
 import { getConnection, initOraclePool } from "./config/db.js";
 
+/*
+  Autores:
+    Gabriel Scolfaro de Azevedo (principal)
+    Matheus Antony Lucas Lima
+ */
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

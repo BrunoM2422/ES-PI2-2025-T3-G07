@@ -1,4 +1,8 @@
 // src/config/db.ts
+/*
+  Autores:
+    Gabriel Scolfaro de Azevedo
+ */
 import oracledb from "oracledb";
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;

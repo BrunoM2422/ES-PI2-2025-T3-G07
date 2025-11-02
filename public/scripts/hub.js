@@ -1,4 +1,10 @@
 // ===== Referências principais =====
+/*
+    Autores:
+        Bruno Lenitta Machado
+        Nicolas Mitjans Nunes
+
+ */
 const addBtn = document.getElementById("add-button");
 const backBtn = document.getElementById("back-button");
 const tableBody = document.getElementById("table-body");
