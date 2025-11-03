@@ -5,9 +5,10 @@
         Matheus Antony Lucas Lima
 -->
 <!--Esta é a página inicial do projeto, na qual inicio-se a estruturação do site.
-    O site é estruturado seguindo a principal lógica de mercado: header, body, footer.
+    O site é estruturado seguindo a principal lógica de mercado: header, content, footer.
     Sendo o header e o footer para fornecer informações úteis e rápidas ao usuário
-    e o body o conteúdo específico do site.
+    e o content o conteúdo específico do site.
+    Todos os elementos estão dentro da área wrapper.
 -->
 <html lang="pt-BR">
 <head>
@@ -21,10 +22,10 @@
     <div id="wrapper">
         <div id="header">
             <a href="index.html"><img src="./images/notadezlogo2.png" alt="logo" class="header-logo"></a>
-            <nav>
+            <nav> <!-- O nav serve para definir uma seção de navegação, poderia ser substituído sem grandes prejuízos pelo div-->
                 <ul>
-                    <li><a href="index.html">Log-In</a></li>
-                    <li><a href="criarConta.html">Sign-In</a></li>
+                    <li><a href="index.html">Log In</a></li>
+                    <li><a href="criarConta.html">Sign Up</a></li>
                 </ul>
             </nav>
         </div>
@@ -32,7 +33,7 @@
             <p>
                 Login
             </p>
-            <form>
+            <form> <!--Formulário para entrar no site-->
                 <input type="email" id="email" placeholder="Email" required>
                 <input type="password" id="password" placeholder="Senha" required>
                 <button>Enviar</button>
@@ -57,7 +58,8 @@
         <img src="./images/notadezlogo1.png" alt="logo" class="footer-logo">
     </div>
 </div>
-    
+    <!--Colocar os scripts na página, foi colocado no fim da página com o objetivo da página carregar primeiro o HTML/CSS
+    e depois o js, garantindo maior velocidade no carregamento do site-->
 <script src="./scripts/login.js"></script>    
 </body>
 </html>
