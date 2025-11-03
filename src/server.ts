@@ -9,15 +9,17 @@ import { getConnection, initOraclePool } from "./config/db.js";
 
 /*
   Autores:
-    Gabriel Scolfaro de Azevedo (principal)
+    Gabriel Scolfaro de Azeredo (principal)
     Matheus Antony Lucas Lima
- */
+*/
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
+
+oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
 // Caminhos absolutos da raiz do projeto e da pasta public
 const ROOT_DIR = path.resolve(__dirname, ".."); // sobe da pasta dist/ para a raiz
@@ -34,7 +36,6 @@ app.use("/htmls", express.static(path.join(PUBLIC_DIR, "htmls")));
 app.use("/styles", express.static(path.join(PUBLIC_DIR, "styles")));
 app.use("/images", express.static(path.join(PUBLIC_DIR, "images")));
 app.use("/scripts", express.static(path.join(PUBLIC_DIR, "scripts")));
-
 
 //Criação de um interface conta
 interface CreateAccount{
@@ -53,6 +54,7 @@ async function initializeDatabase() {
   try {
     connection = await getConnection();
 
+    // USUARIO
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
@@ -63,25 +65,34 @@ async function initializeDatabase() {
             nome VARCHAR2(100) NOT NULL,
             telefone VARCHAR2(15) NOT NULL
           )';
-      EXCEPTION
-        WHEN OTHERS THEN
-          IF SQLCODE != -955 THEN RAISE; END IF;
+      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
+    // INSTITUICAO
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE instituicao (
             id_instituicao NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            nome VARCHAR2(100) NOT NULL,
-            fk_usuario_id_usuario NUMBER NOT NULL,
-            CONSTRAINT fk_usuario FOREIGN KEY (fk_usuario_id_usuario)
-            REFERENCES usuario(id_usuario) ON DELETE CASCADE
+            nome VARCHAR2(100) NOT NULL
           )';
-      EXCEPTION
-        WHEN OTHERS THEN
-          IF SQLCODE != -955 THEN RAISE; END IF;
+      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+      END;
+    `);
+
+    // TRABALHA_EM
+    await connection.execute(`
+      BEGIN
+        EXECUTE IMMEDIATE '
+          CREATE TABLE trabalha_em (
+            fk_usuario_id_usuario NUMBER NOT NULL,
+            fk_instituicao_id_instituicao NUMBER NOT NULL,
+            CONSTRAINT pk_trabalha_em PRIMARY KEY (fk_usuario_id_usuario, fk_instituicao_id_instituicao),
+            CONSTRAINT fk_trab_usuario FOREIGN KEY (fk_usuario_id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+            CONSTRAINT fk_trab_instituicao FOREIGN KEY (fk_instituicao_id_instituicao) REFERENCES instituicao(id_instituicao) ON DELETE CASCADE
+          )';
+      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
@@ -101,12 +112,13 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
   try {
     const { name, surname, email, telephone, password } = req.body;
 
+    console.log("📥 Dados recebidos:", { name, surname, email, telephone });
+
     if (!name || !surname || !email || !telephone || !password) {
       return res.status(400).json({ ok: false, error: "Todos os campos são obrigatórios." });
     }
 
     const nomeCompleto = `${name.trim()} ${surname.trim()}`;
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ ok: false, error: "Email inválido." });
@@ -114,9 +126,12 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
-    const check = await connection.execute("SELECT COUNT(*) FROM usuario WHERE email = :email", [email]);
-    const count = (check.rows?.[0] as number[])[0];
+    const check = await connection.execute(
+      "SELECT COUNT(*) AS COUNT FROM usuario WHERE email = :email",
+      [email]
+    );
 
+    const count = (check.rows?.[0] as any).COUNT;
     if (count > 0) {
       return res.status(400).json({ ok: false, error: "Email já registrado." });
     }
@@ -136,7 +151,6 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
       { autoCommit: true }
     );
 
-    // Correção: informar tipo explícito
     const outBinds = result.outBinds as { id: number[] };
     const userId = outBinds.id[0];
 
@@ -156,7 +170,6 @@ app.post("/api/login", async (req: Request, res: Response) => {
   let connection;
   try {
     const { email, password } = req.body;
-
     if (!email || !password) {
       return res.status(400).json({ ok: false, error: "Email e senha são obrigatórios." });
     }
@@ -164,21 +177,25 @@ app.post("/api/login", async (req: Request, res: Response) => {
     connection = await getConnection();
 
     const result = await connection.execute("SELECT * FROM usuario WHERE email = :email", [email]);
+    const user = result.rows?.[0] as any;
 
-    const rows = result.rows as (string | number)[][];
-    if (!rows || rows.length === 0) {
+    if (!user) {
       return res.status(404).json({ ok: false, error: "Usuário não encontrado." });
     }
 
-    const [id_usuario, userEmail, senha, nome, telefone] = rows[0];
-    if (senha !== password) {
+    if (user.SENHA !== password) {
       return res.status(401).json({ ok: false, error: "Senha incorreta." });
     }
 
+    console.log("✅ Login realizado:", user.EMAIL);
     res.json({
       ok: true,
       message: "Login realizado com sucesso!",
-      user: { id_usuario, email: userEmail, nome },
+      user: {
+        id_usuario: user.ID_USUARIO,
+        email: user.EMAIL,
+        nome: user.NOME,
+      },
     });
   } catch (err) {
     console.error("❌ Erro no login:", err);
@@ -200,7 +217,6 @@ app.get("/:page", (req, res) => {
   fs.existsSync(page) ? res.sendFile(page) : res.status(404).send("Página não encontrada");
 });
 
-
 // ===================================================
 // 🚀 Inicialização
 // ===================================================
@@ -208,10 +224,7 @@ async function startServer() {
   try {
     await initOraclePool();
     await initializeDatabase();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-    });
+    app.listen(PORT, () => console.log(`🚀 Servidor rodando em http://localhost:${PORT}`));
   } catch (err) {
     console.error("❌ Falha ao iniciar servidor:", err);
     process.exit(1);

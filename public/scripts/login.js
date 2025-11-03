@@ -13,46 +13,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function initializeLogin() {
         // Adiciona os listeners de evento e de validação
-        if (loginForm) {
-            loginForm.addEventListener('submit', handleLoginSubmit);
-        }
-
+        if (loginForm) loginForm.addEventListener('submit', handleLoginSubmit);
         if (emailInput) {
             emailInput.addEventListener('input', validateEmail);
             emailInput.addEventListener('blur', validateEmail);
         }
-
         if (passwordInput) {
             passwordInput.addEventListener('input', validatePassword);
             passwordInput.addEventListener('blur', validatePassword);
         }
-
         //Isso serve para que o click seja notado pelo programa
-        if (recoverPasswordLink) {
+        if (recoverPasswordLink)
             recoverPasswordLink.addEventListener('click', handleRecoverPasswordClick);
-        }
-
-        if (createAccountLink) {
+        if (createAccountLink)
             createAccountLink.addEventListener('click', handleCreateAccountClick);
-        }
-
     }
 
     function handleLoginSubmit(event) {
         event.preventDefault(); // Não deixa mandar default
-
         // Limpa mensagens anteriores
         clearMessages();
 
         // Valida o formulário
-        if (!validateForm()) {
-            return;
-        }
+        if (!validateForm()) return;
 
         //Pega os dados do formulário
         const loginData = {
             email: emailInput.value.trim(),
-            password: passwordInput.value
+            password: passwordInput.value,
         };
 
         // Faz o login
@@ -61,15 +49,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateForm() {
         let isValid = true;
-
         // valida o email e a senha respectivamente
-        if (!validateEmail()) {
-            isValid = false;
-        }
-        if (!validatePassword()) {
-            isValid = false;
-        }
-
+        if (!validateEmail()) isValid = false;
+        if (!validatePassword()) isValid = false;
         return isValid;
     }
 
@@ -81,51 +63,77 @@ document.addEventListener('DOMContentLoaded', function() {
             showFieldError(emailInput, 'Email é obrigatório');
             return false;
         }
-
         if (!emailRegex.test(email)) {
             showFieldError(emailInput, 'Por favor, insira um email válido');
             return false;
         }
-
         clearFieldError(emailInput);
         return true;
     }
 
     function validatePassword() {
         const password = passwordInput.value;
-
         if (password === '') {
             showFieldError(passwordInput, 'Senha é obrigatória');
             return false;
         }
-
         if (password.length < 6) {
             showFieldError(passwordInput, 'A senha deve ter pelo menos 6 caracteres');
             return false;
         }
-
         clearFieldError(passwordInput);
         return true;
     }
 
-    function performLogin(loginData) {
-        //WIP
+    async function performLogin(loginData) {
+        try {
+            setSubmitButtonState('loading', 'Entrando...');
+
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginData),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.ok) {
+                handleLoginError(result.error || 'Email ou senha inválidos.');
+                return;
+            }
+
+            // Salva usuário no localStorage
+            localStorage.setItem('currentUser', JSON.stringify(result.user));
+
+            // Mensagem de sucesso
+            showMessage('Login realizado com sucesso! Redirecionando...', 'success');
+
+            // Redireciona para o hub.html após 1s
+            setTimeout(() => {
+                window.location.href = 'hub.html';
+            }, 1000);
+        } catch (error) {
+            console.error('Erro ao fazer login:', error);
+            handleLoginError('Erro inesperado. Tente novamente.');
+        } finally {
+            setSubmitButtonState('normal', 'Entrar');
+        }
     }
 
     function handleLoginError(message) {
-        setSubmitButtonState('normal', 'Enviar');
+        setSubmitButtonState('normal', 'Entrar');
         showMessage(message, 'error');
     }
 
     function handleRecoverPasswordClick(event) {
         event.preventDefault();
-        // Navigate to password recovery page
+        // Navega pra página de recuperação de senha
         window.location.href = 'recuperarSenha.html';
     }
 
     function handleCreateAccountClick(event) {
         event.preventDefault();
-        // Navigate to account creation page
+        // Navega pra página de criar conta
         window.location.href = 'criarConta.html';
     }
 
@@ -148,37 +156,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showFieldError(input, message) {
         clearFieldError(input);
-
         const errorDiv = document.createElement('div');
         errorDiv.className = 'field-error';
         errorDiv.textContent = message;
         errorDiv.style.color = '#e74c3c';
         errorDiv.style.fontSize = '12px';
         errorDiv.style.marginTop = '5px';
-
         input.parentNode.appendChild(errorDiv);
         input.style.borderColor = '#e74c3c';
     }
 
     function clearFieldError(input) {
         const existingError = input.parentNode.querySelector('.field-error');
-        if (existingError) {
-            existingError.remove();
-        }
+        if (existingError) existingError.remove();
         input.style.borderColor = '';
     }
 
     function showMessage(message, type) {
         // remove mensagens existentes
         const existingMessage = document.querySelector('.login-message');
-        if (existingMessage) {
-            existingMessage.remove();
-        }
+        if (existingMessage) existingMessage.remove();
 
         const messageDiv = document.createElement('div');
         messageDiv.className = 'login-message';
-        messageDiv.innerHTML = message; // Use innerHTML para que links funcionem na mensagem de erro (provavelmente nem precise caso nem seja aplicável)
-        // Estilização baseado no tipo de mensagem
+        messageDiv.innerHTML = message;
+
         if (type === 'success') {
             messageDiv.style.cssText = `
                 background-color: #d4edda;
@@ -187,6 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 border-radius: 4px;
                 margin: 10px 0;
                 border: 1px solid #c3e6cb;
+                text-align: center;
             `;
         } else if (type === 'error') {
             messageDiv.style.cssText = `
@@ -196,34 +199,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 border-radius: 4px;
                 margin: 10px 0;
                 border: 1px solid #f5c6cb;
+                text-align: center;
             `;
         }
 
-        // Insere a mensagem depois do formulário
         loginForm.parentNode.insertBefore(messageDiv, loginForm.nextSibling);
     }
 
     function clearMessages() {
         const messages = document.querySelectorAll('.login-message, .field-error');
-        messages.forEach(msg => msg.remove());
-
         // Reseta a estilização dos campos
+        messages.forEach((msg) => msg.remove());
         const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.style.borderColor = '';
-        });
+        inputs.forEach((input) => (input.style.borderColor = ''));
     }
 
-
-    // Funções que provavelmente serão criadas no futuro
+    // Controle de sessão
     function isLoggedIn() {
-        const user = localStorage.getItem('currentUser');
-        return user !== null;
+        return localStorage.getItem('currentUser') !== null;
     }
 
     function logout() {
         localStorage.removeItem('currentUser');
-        window.location.href = 'login.html';
+        window.location.href = 'index.html';
     }
 
     function getCurrentUser() {

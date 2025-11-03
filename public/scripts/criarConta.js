@@ -45,9 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function handleAccountCreation(event) {
         event.preventDefault(); // Não deixa default passar
-
-        // limpa as mensagens antigas
-        clearMessages();
+        
+        clearMessages(); // limpa as mensagens antigas
 
         // valida o formulário
         if (!validateForm()) {
@@ -64,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         // Faz a criação da conta
+        // Envia pro servidor
         performAccountCreation(accountData);
     }
 
@@ -82,44 +82,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateName() {
         const name = nameInput.value.trim();
-
+        
         if (name === '') {
             showFieldError(nameInput, 'Nome é obrigatório');
             return false;
         }
-
         if (name.length < 2) {
             showFieldError(nameInput, 'Nome deve ter pelo menos 2 caracteres');
             return false;
         }
-
         if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(name)) {
             showFieldError(nameInput, 'Nome deve conter apenas letras');
             return false;
         }
-
         clearFieldError(nameInput);
         return true;
     }
 
     function validateSurname() {
         const surname = surnameInput.value.trim();
-
         if (surname === '') {
             showFieldError(surnameInput, 'Sobrenome é obrigatório');
             return false;
         }
-
         if (surname.length < 2) {
             showFieldError(surnameInput, 'Sobrenome deve ter pelo menos 2 caracteres');
             return false;
         }
-
         if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(surname)) {
             showFieldError(surnameInput, 'Sobrenome deve conter apenas letras');
             return false;
         }
-
         clearFieldError(surnameInput);
         return true;
     }
@@ -127,59 +120,48 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateEmail() {
         const email = emailInput.value.trim();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
         if (email === '') {
             showFieldError(emailInput, 'Email é obrigatório');
             return false;
         }
-
         if (!emailRegex.test(email)) {
             showFieldError(emailInput, 'Por favor, insira um email válido');
             return false;
         }
-
         clearFieldError(emailInput);
         return true;
     }
 
     function validateTelephone() {
         const telephone = telephoneInput.value.trim();
-
         if (telephone === '') {
             showFieldError(telephoneInput, 'Telefone é obrigatório');
             return false;
         }
-
         // Remove todos os caracteres não numéricos para validação
         const cleanPhone = telephone.replace(/\D/g, '');
-
         if (cleanPhone.length < 10 || cleanPhone.length > 11) {
             showFieldError(telephoneInput, 'Telefone deve ter 10 ou 11 dígitos');
             return false;
         }
-
         clearFieldError(telephoneInput);
         return true;
     }
 
     function validatePassword() {
         const password = passwordInput.value;
-
         if (password === '') {
             showFieldError(passwordInput, 'Senha é obrigatória');
             return false;
         }
-
         if (password.length < 6) {
             showFieldError(passwordInput, 'A senha deve ter pelo menos 6 caracteres');
             return false;
         }
-
         if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
             showFieldError(passwordInput, 'A senha deve conter pelo menos uma letra minúscula, uma maiúscula e um número');
             return false;
         }
-
         clearFieldError(passwordInput);
         return true;
     }
@@ -187,31 +169,29 @@ document.addEventListener('DOMContentLoaded', function() {
     async function performAccountCreation(accountData) {
         try {
             setSubmitButtonState('loading', 'Criando conta...');
-    
-            const response = await fetch('/api/register', {
+
+            const response = await fetch('/api/create-account', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(accountData)
             });
-    
+
             const result = await response.json();
-    
-            if (!response.ok) {
-                handleAccountCreationError(result.message || 'Erro ao criar conta.');
+
+            if (!response.ok || !result.ok) {
+                handleAccountCreationError(result.error || 'Erro ao criar conta.');
                 return;
             }
-    
-            // Salva os dados no localStorage para exibir na tela de sucesso
-            localStorage.setItem('lastRegisteredUser', JSON.stringify(result.data));
-    
-            // Mensagem visual opcional
+
+            // Salva o usuário recém-criado no localStorage
+            localStorage.setItem('lastRegisteredUser', JSON.stringify(result));
+
             showMessage('Conta criada com sucesso!', 'success');
-    
-            // Redireciona para a página de sucesso após 1 segundo
+
+            // Redireciona após um curto tempo
             setTimeout(() => {
-                window.location.href = 'sucesso.html';
-            }, 1000);
-    
+                window.location.href = 'hub.html';
+            }, 1200);
         } catch (error) {
             console.error('Erro ao criar conta:', error);
             handleAccountCreationError('Ocorreu um erro inesperado. Tente novamente.');
@@ -219,7 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
             setSubmitButtonState('normal', 'Criar Conta');
         }
     }
-    
 
     function handleAccountCreationError(message) {
         setSubmitButtonState('normal', 'Criar Conta');
@@ -228,7 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setSubmitButtonState(state, text) {
         if (!submitButton) return;
-
         switch (state) {
             case 'loading':
                 submitButton.disabled = true;
@@ -245,32 +223,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showFieldError(input, message) {
         clearFieldError(input);
-
         const errorDiv = document.createElement('div');
         errorDiv.className = 'field-error';
         errorDiv.textContent = message;
         errorDiv.style.color = '#e74c3c';
         errorDiv.style.fontSize = '12px';
         errorDiv.style.marginTop = '5px';
-
         input.parentNode.appendChild(errorDiv);
         input.style.borderColor = '#e74c3c';
     }
 
     function clearFieldError(input) {
         const existingError = input.parentNode.querySelector('.field-error');
-        if (existingError) {
-            existingError.remove();
-        }
+        if (existingError) existingError.remove();
         input.style.borderColor = '';
     }
 
     function showMessage(message, type) {
         // Remove mensagens existentes
         const existingMessage = document.querySelector('.account-message');
-        if (existingMessage) {
-            existingMessage.remove();
-        }
+        if (existingMessage) existingMessage.remove();
 
         const messageDiv = document.createElement('div');
         messageDiv.className = 'account-message';
@@ -313,7 +285,8 @@ document.addEventListener('DOMContentLoaded', function() {
             input.style.borderColor = '';
         });
     }
-    // Funções que poderão ser criadas no futuro
+
+    // Funções extras (possível uso futuro)
     function getRegisteredUsers() {
         return JSON.parse(localStorage.getItem('registeredUsers') || '[]');
     }
@@ -322,6 +295,5 @@ document.addEventListener('DOMContentLoaded', function() {
         const users = getRegisteredUsers();
         return users.some(user => user.email === email);
     }
-
 
 });

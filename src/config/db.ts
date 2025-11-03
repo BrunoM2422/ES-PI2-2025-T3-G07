@@ -1,7 +1,7 @@
 // src/config/db.ts
 /*
   Autores:
-    Gabriel Scolfaro de Azevedo
+    Gabriel Scolfaro de Azeredo
  */
 import oracledb from "oracledb";
 
