@@ -3,8 +3,8 @@
     Autores:
         Bruno Lenitta Machado
         Gabriel Scolfaro de Azeredo
+        Atualização: Sistema de Notas e Médias (2025)
 -->
-<!--Página que mostra os cursos e instituições do professor-->
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -16,7 +16,7 @@
 </head>
 <body>
     <div id="wrapper">
-        <header id="header"> <!--a tag header pode ser substituída sem grandes prejuízos pela div-->
+        <header id="header">
             <a href="index.html"><img src="./images/notadezlogo2.png" alt="logo" class="header-logo"></a>
             <nav>
                 <ul>
@@ -25,7 +25,7 @@
             </nav>
         </header>
 
-        <main id="content"> <!--a tag main pode ser substituída sem grandes prejuízos pela div-->
+        <main id="content">
             <section class="hub-container">
                 <div class="hub-header">
                     <h2 id="page-title">Instituições e Cursos Cadastrados</h2>
@@ -36,10 +36,10 @@
                 </div>
 
                 <div class="table-wrapper">
-                    <table id="data-table"> <!--A tag table cria uma tabela-->
-                        <thead> 
+                    <table id="data-table">
+                        <thead>
                             <tr id="table-header">
-                                <th>Nome da Instituição</th>
+                                <th>Instituição</th>
                                 <th>Curso</th>
                             </tr>
                         </thead>
@@ -56,10 +56,8 @@
         <div id="modal" class="modal hidden">
             <div class="modal-content">
                 <span id="close-modal">&times;</span>
-                <h3 id="modal-title">Adicionar Instituição</h3>
-                <form id="modal-form">
-                    <!-- Inputs dinâmicos -->
-                </form>
+                <h3 id="modal-title">Adicionar</h3>
+                <form id="modal-form"></form>
             </div>
         </div>
 
