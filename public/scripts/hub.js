@@ -143,24 +143,41 @@ function renderTable() {
         td.addEventListener("focus", () => {
             td.dataset.original = td.textContent.trim();
         });
-
+    
         td.addEventListener("keydown", e => {
             if (e.key === "Enter") {
                 e.preventDefault();
                 td.blur();
             }
         });
-
+    
         td.addEventListener("blur", () => {
-            const newValue = td.textContent.trim();
+            let newValue = td.textContent.trim();
             const rowIndex = td.parentElement.rowIndex - 1;
             const compIndex = parseInt(td.dataset.comp);
             const cls = data.institutions[path[0]].subjects[path[1]].classes[path[2]];
-            if (newValue !== td.dataset.original) {
-                cls.students[rowIndex].grades[compIndex] = parseFloat(newValue) || 0;
+    
+            // Se não for número, volta ao valor original
+            const grade = parseFloat(newValue);
+            if (isNaN(grade)) {
+                td.textContent = td.dataset.original;
+                return;
+            }
+    
+            // Validação de faixa (0 a 10)
+            if (grade < 0 || grade > 10) {
+                alert("A nota deve estar entre 0 e 10.");
+                td.textContent = td.dataset.original;
+                return;
+            }
+    
+            // Atualiza apenas se o valor mudou
+            if (grade != td.dataset.original) {
+                cls.students[rowIndex].grades[compIndex] = grade;
             }
         });
     });
+    
 
     // Clique no nome do componente (editar/remover)
     document.querySelectorAll(".component-header").forEach(th => {
