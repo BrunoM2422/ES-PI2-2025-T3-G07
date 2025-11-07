@@ -283,3 +283,61 @@
     background-color: #d58512;
     transform: scale(0.98);
 }
+
+/* ===== Seletor visual de dias da semana ===== */
+.week-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.week-days label {
+  user-select: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #e3e3e3;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.week-days input {
+  display: none;
+}
+
+.week-days input:checked + span {
+  background: #4a90e2;
+  color: white;
+  border-radius: 6px;
+
+}
+
+/* ===== Campo de descrição (Textarea) ===== */
+textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: 0.2s ease;
+  background: #fafafa;
+  outline: none;
+}
+
+textarea:focus {
+  border-color: #4a90e2;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+}
+
+textarea::placeholder {
+  color: #999;
+  font-style: italic;
+}
+

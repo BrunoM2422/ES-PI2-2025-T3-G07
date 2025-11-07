@@ -2,7 +2,7 @@
     Autores originais:
         Bruno Lenitta Machado
         Nicolas Mitjans Nunes
-    Atualização: Sistema de Médias e Notas (Fix edição + botão estilizado - 2025)
+    Atualização: Sistema de Médias e Notas + Novos campos de disciplina e turma + componentes com apelido/descrição (2025)
 */
 
 const addBtn = document.getElementById("add-button");
@@ -38,27 +38,48 @@ function renderTable() {
             `<tr data-index="${idx}" data-type="institution"><td>${inst.name}</td><td>${inst.course}</td></tr>`
         );
 
-    // ===== Nível 1 - Matérias =====
+    // ===== Nível 1 - Disciplinas (com código, período e apelido) =====
     } else if (path.length === 1) {
         const inst = data.institutions[path[0]];
-        pageTitle.textContent = `Matérias do curso ${inst.course}`;
-        addBtn.textContent = "+ Adicionar Matéria";
+        pageTitle.textContent = `Disciplinas do curso ${inst.course}`;
+        addBtn.textContent = "+ Adicionar Disciplina";
         backBtn.classList.remove("hidden");
-        tableHeader.innerHTML = `<th>Curso</th><th>Matéria</th>`;
+
+        tableHeader.innerHTML = `<th>Disciplina</th><th>Código</th><th>Período</th><th>Apelido</th>`;
+
         rows = (inst.subjects || []).map((subj, idx) =>
-            `<tr data-index="${idx}" data-type="subject"><td>${inst.course}</td><td>${subj.name}</td></tr>`
+            `<tr data-index="${idx}" data-type="subject">
+                <td>${subj.name}</td>
+                <td>${subj.code}</td>
+                <td>${subj.period}</td>
+                <td>${subj.nickname || "-"}</td>
+            </tr>`
         );
 
-    // ===== Nível 2 - Turmas =====
+    // ===== Nível 2 - Turmas (com apelido, dia, horário e local) =====
     } else if (path.length === 2) {
         const inst = data.institutions[path[0]];
         const subj = inst.subjects[path[1]];
         pageTitle.textContent = `Turmas de ${subj.name}`;
         addBtn.textContent = "+ Adicionar Turma";
         backBtn.classList.remove("hidden");
-        tableHeader.innerHTML = `<th>Matéria</th><th>Turma</th>`;
+
+        tableHeader.innerHTML = `
+            <th>Turma</th>
+            <th>Apelido</th>
+            <th>Dia</th>
+            <th>Horário</th>
+            <th>Local</th>
+        `;
+
         rows = (subj.classes || []).map((cls, idx) =>
-            `<tr data-index="${idx}" data-type="class"><td>${subj.name}</td><td>${cls.number}</td></tr>`
+            `<tr data-index="${idx}" data-type="class">
+                <td>${cls.number}</td>
+                <td>${cls.nickname || "-"}</td>
+                <td>${cls.day || "-"}</td>
+                <td>${cls.time}</td>
+                <td>${cls.location}</td>
+            </tr>`
         );
 
     // ===== Nível 3 - Alunos =====
@@ -68,16 +89,15 @@ function renderTable() {
         addBtn.textContent = "+ Adicionar Aluno";
         backBtn.classList.remove("hidden");
 
-        // Cabeçalho
         tableHeader.innerHTML = `<th>Nome</th><th>RA</th>`;
         if (cls.grading && cls.grading.components.length) {
             cls.grading.components.forEach((c, i) => {
-                tableHeader.innerHTML += `<th class="component-header" data-index="${i}" title="Clique para editar/remover">${c.name}${cls.grading.type === "Ponderada" ? ` (${c.weight})` : ""}</th>`;
+                // usa apelido (nickname) na coluna
+                tableHeader.innerHTML += `<th class="component-header" data-index="${i}" title="Clique para editar/remover">${c.nickname}${cls.grading.type === "Ponderada" ? ` (${c.weight})` : ""}</th>`;
             });
             tableHeader.innerHTML += `<th>Média</th>`;
         }
 
-        // Linhas de alunos
         rows = (cls.students || []).map((stu, idx) => {
             let row = `<tr><td>${stu.name}</td><td>${stu.ra}</td>`;
             if (!stu.grades) stu.grades = [];
@@ -92,7 +112,6 @@ function renderTable() {
             return row;
         });
 
-        // ===== Área de Média =====
         gradingDiv = document.createElement("div");
         gradingDiv.id = "grading-div";
         document.getElementById("content").appendChild(gradingDiv);
@@ -108,7 +127,6 @@ function renderTable() {
             mediaInfo.textContent = `Tipo de Média: ${cls.grading.type}`;
             gradingDiv.appendChild(mediaInfo);
 
-            // Novo botão estilizado
             const editBtn = document.createElement("button");
             editBtn.classList.add("edit-average-btn");
             editBtn.innerHTML = "✎ Editar Tipo de Média";
@@ -138,8 +156,11 @@ function renderTable() {
         noRecords.textContent = "Nenhum registro encontrado.";
     }
 
-    // ===== Edição estável de notas =====
+    // ===== after render: attach listeners for grade-cells and component headers =====
+
+    // grade-cell stable editing
     tableBody.querySelectorAll("td.grade-cell").forEach(td => {
+        // make cells editable (they already are via contenteditable)
         td.addEventListener("focus", () => {
             td.dataset.original = td.textContent.trim();
         });
@@ -153,16 +174,19 @@ function renderTable() {
 
         td.addEventListener("blur", () => {
             const newValue = td.textContent.trim();
-            const rowIndex = td.parentElement.rowIndex - 1;
+            const rowIndex = td.parentElement.rowIndex - 1; // because header row present
             const compIndex = parseInt(td.dataset.comp);
             const cls = data.institutions[path[0]].subjects[path[1]].classes[path[2]];
             if (newValue !== td.dataset.original) {
-                cls.students[rowIndex].grades[compIndex] = parseFloat(newValue) || 0;
+                // parse float or zero
+                cls.students[rowIndex].grades[compIndex] = parseFloat(newValue.replace(',', '.')) || 0;
             }
+            // re-render to update media column if needed (but avoid losing focus loops)
+            // only recalc/display, not necessary to call full render here
         });
     });
 
-    // Clique no nome do componente (editar/remover)
+    // component-header click (attach to each th that has class)
     document.querySelectorAll(".component-header").forEach(th => {
         th.addEventListener("click", () => {
             const compIndex = parseInt(th.dataset.index);
@@ -178,6 +202,12 @@ function openModal(title, innerHTML, onSubmit) {
     modalForm.innerHTML = innerHTML;
     modal.classList.remove("hidden");
 
+    // focus first input if exists (small UX nicety)
+    setTimeout(() => {
+        const first = modalForm.querySelector("input, textarea, select");
+        if (first) first.focus();
+    }, 50);
+
     modalForm.onsubmit = (e) => {
         e.preventDefault();
         onSubmit();
@@ -188,14 +218,13 @@ function openModal(title, innerHTML, onSubmit) {
 
 closeModal.onclick = () => modal.classList.add("hidden");
 
-// ===== Navegação (com fix) =====
+// ===== Navegação =====
 tableBody.addEventListener("click", (e) => {
     // Evita navegação se clicou em célula editável
     if (e.target.classList.contains("grade-cell") || e.target.isContentEditable) {
         e.stopPropagation();
         return;
     }
-
     const row = e.target.closest("tr");
     if (!row) return;
     const idx = parseInt(row.dataset.index);
@@ -223,22 +252,80 @@ addBtn.onclick = () => {
                 const course = document.getElementById("inst-course").value.trim();
                 if (name && course) data.institutions.push({ name, course, subjects: [] });
             });
+
+    // ===== Adicionar Disciplina (antes: Matéria) =====
     } else if (path.length === 1) {
-        openModal("Adicionar Matéria",
-            `<input id="subject-name" placeholder="Nome da Matéria" required>
+        openModal("Adicionar Disciplina",
+            `<input id="subject-name" placeholder="Nome da Disciplina" required>
+             <input id="subject-code" placeholder="Código da Disciplina" required>
+             <input id="subject-period" type="number" min="1" max="10" placeholder="Período (1 a 10)" required>
+             <input id="subject-nickname" placeholder="Apelido da Disciplina (opcional)">
              <button type="submit">Adicionar</button>`,
             () => {
                 const name = document.getElementById("subject-name").value.trim();
-                if (name) data.institutions[path[0]].subjects.push({ name, classes: [] });
+                const code = document.getElementById("subject-code").value.trim();
+                const period = parseInt(document.getElementById("subject-period").value);
+                const nickname = document.getElementById("subject-nickname").value.trim() || "-";
+
+                if (name && code && period >= 1 && period <= 10) {
+                    data.institutions[path[0]].subjects.push({
+                        name,
+                        code,
+                        period,
+                        nickname,
+                        classes: []
+                    });
+                } else {
+                    alert("Preencha nome, código e período válido (1-10).");
+                }
             });
+
+    // ===== Adicionar Turma =====
     } else if (path.length === 2) {
         openModal("Adicionar Turma",
             `<input id="class-number" placeholder="Número da Turma" required>
+             <input id="class-nickname" placeholder="Apelido da Turma (opcional)">
+
+             <div class="week-days">
+                <label><input type="checkbox" value="Segunda"><span>Segunda</span></label>
+                <label><input type="checkbox" value="Terça"><span>Terça</span></label>
+                <label><input type="checkbox" value="Quarta"><span>Quarta</span></label>
+                <label><input type="checkbox" value="Quinta"><span>Quinta</span></label>
+                <label><input type="checkbox" value="Sexta"><span>Sexta</span></label>
+                <label><input type="checkbox" value="Sábado"><span>Sábado</span></label>
+                <label><input type="checkbox" value="Domingo"><span>Domingo</span></label>
+             </div>
+             <br>
+
+             <input id="class-time" placeholder="Horário (ex: 19:00 - 21:30)" required>
+             <input id="class-location" placeholder="Local (ex: Sala 12)" required>
+
              <button type="submit">Adicionar</button>`,
             () => {
                 const number = document.getElementById("class-number").value.trim();
-                if (number) data.institutions[path[0]].subjects[path[1]].classes.push({ number, students: [] });
+                const nickname = document.getElementById("class-nickname").value.trim() || "-";
+
+                const days = Array.from(document.querySelectorAll(".week-days input:checked"))
+                                  .map(d => d.value);
+
+                const time = document.getElementById("class-time").value.trim();
+                const location = document.getElementById("class-location").value.trim();
+
+                if (number && days.length > 0 && time && location) {
+                    data.institutions[path[0]].subjects[path[1]].classes.push({
+                        number,
+                        nickname,
+                        day: days.join(", "),
+                        time,
+                        location,
+                        students: []
+                    });
+                } else {
+                    alert("Selecione ao menos 1 dia da semana e preencha horário/local.");
+                }
             });
+
+    // ===== Adicionar Aluno =====
     } else if (path.length === 3) {
         openModal("Adicionar Aluno",
             `<input id="student-name" placeholder="Nome do Aluno" required>
@@ -277,48 +364,90 @@ function editarTipoMedia(cls) {
     }
 }
 
+// ===== Adicionar Componente (ordem: Nome, Apelido obrigatório, Descrição, Peso se Ponderada) =====
 function adicionarComponente(cls) {
     const isPonderada = cls.grading.type === "Ponderada";
     openModal("Adicionar Componente",
-        `<input id="comp-name" placeholder="Nome do Componente" required>
+        `<input id="comp-name" placeholder="Nome interno (ex: Prova 1)" required>
+         <input id="comp-nickname" placeholder="Apelido que aparecerá na tabela (ex: P1)" required>
+         <textarea id="comp-desc" placeholder="Descrição (opcional, ex: Prova aplicada em 20/04)"></textarea>
          ${isPonderada ? '<input id="comp-weight" type="number" placeholder="Peso (0 a 10)" min="0" max="10" step="0.1" required>' : ''}
          <button type="submit">Adicionar</button>`,
         () => {
             const name = document.getElementById("comp-name").value.trim();
+            const nickname = document.getElementById("comp-nickname").value.trim();
+            const description = document.getElementById("comp-desc").value.trim();
             const weight = isPonderada ? parseFloat(document.getElementById("comp-weight").value) : 1;
-            if (name) cls.grading.components.push({ name, weight });
+
+            if (!name) return alert("Preencha o nome interno do componente.");
+            if (!nickname) return alert("Preencha o apelido do componente (obrigatório).");
+
+            // add component object with nickname + description
+            cls.grading.components.push({ name, nickname, description, weight });
+
+            // ensure each student has this grade index initialized
+            cls.students.forEach(s => {
+                if (!s.grades) s.grades = [];
+                if (s.grades.length < cls.grading.components.length) s.grades.push(0);
+            });
         });
 }
 
+// ===== Editar/Remover Componente (edita name, nickname, description, peso) =====
 function editarOuRemoverComponente(cls, index) {
     const comp = cls.grading.components[index];
     const isPonderada = cls.grading.type === "Ponderada";
+
+    // safety: if comp undefined (race) just return
+    if (!comp) return alert("Componente não encontrado.");
+
     openModal("Editar ou Remover Componente",
-        `<input id="edit-name" value="${comp.name}" placeholder="Nome" required>
+        `<input id="edit-name" value="${comp.name.replace(/"/g, '&quot;')}" placeholder="Nome interno" required>
+         <input id="edit-nickname" value="${(comp.nickname||'').replace(/"/g, '&quot;')}" placeholder="Apelido (coluna) (obrigatório)" required>
+         <textarea id="edit-desc" placeholder="Descrição (opcional)">${comp.description ? comp.description.replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''}</textarea>
          ${isPonderada ? `<input id="edit-weight" type="number" min="0" max="10" step="0.1" value="${comp.weight}">` : ""}
          <button type="submit">Salvar Alterações</button>
          <button type="button" id="remove-comp" style="background:#d9534f;color:white;border:none;border-radius:8px;padding:10px;margin-top:10px;">Remover Componente</button>`,
         () => {
-            comp.name = document.getElementById("edit-name").value.trim();
-            comp.weight = isPonderada ? parseFloat(document.getElementById("edit-weight").value) : 1;
+            const newName = document.getElementById("edit-name").value.trim();
+            const newNickname = document.getElementById("edit-nickname").value.trim();
+            const newDesc = document.getElementById("edit-desc").value.trim();
+            const newWeight = isPonderada ? parseFloat(document.getElementById("edit-weight").value) : 1;
+
+            if (!newName) return alert("Nome interno não pode ficar vazio.");
+            if (!newNickname) return alert("Apelido do componente é obrigatório.");
+
+            comp.name = newName;
+            comp.nickname = newNickname;
+            comp.description = newDesc;
+            comp.weight = newWeight;
         });
 
+    // remove handler (after modal created)
     setTimeout(() => {
-        document.getElementById("remove-comp").onclick = () => {
-            if (confirm("Deseja remover este componente?")) {
-                cls.grading.components.splice(index, 1);
-                cls.students.forEach(s => s.grades.splice(index, 1));
-                modal.classList.add("hidden");
-                renderTable();
-            }
-        };
-    }, 100);
+        const remBtn = document.getElementById("remove-comp");
+        if (remBtn) {
+            remBtn.onclick = () => {
+                if (confirm("Deseja remover este componente?")) {
+                    // remove component
+                    cls.grading.components.splice(index, 1);
+                    // remove grade value for each student at that index
+                    cls.students.forEach(s => {
+                        if (s.grades && s.grades.length > index) s.grades.splice(index, 1);
+                    });
+                    modal.classList.add("hidden");
+                    renderTable();
+                }
+            };
+        }
+    }, 80);
 }
 
+// ===== Calcular Média =====
 function calcularMedia(cls) {
     if (!cls.grading || !cls.grading.components.length) return alert("Adicione ao menos um componente.");
-    const totalPeso = cls.grading.components.reduce((sum, c) => sum + c.weight, 0);
-    if (cls.grading.type === "Ponderada" && totalPeso !== 10)
+    const totalPeso = cls.grading.components.reduce((sum, c) => sum + (c.weight || 0), 0);
+    if (cls.grading.type === "Ponderada" && Math.abs(totalPeso - 10) > 1e-6)
         return alert("A soma dos pesos deve ser exatamente 10.");
 
     cls.students.forEach(stu => {
@@ -327,7 +456,7 @@ function calcularMedia(cls) {
             const soma = stu.grades.reduce((a, b) => a + (parseFloat(b) || 0), 0);
             stu.media = soma / stu.grades.length;
         } else {
-            const somaPond = stu.grades.reduce((acc, nota, i) => acc + nota * cls.grading.components[i].weight, 0);
+            const somaPond = stu.grades.reduce((acc, nota, i) => acc + ((parseFloat(nota) || 0) * (cls.grading.components[i].weight || 0)), 0);
             stu.media = somaPond / 10;
         }
     });
