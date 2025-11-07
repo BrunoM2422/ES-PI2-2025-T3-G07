@@ -19,7 +19,7 @@ Antes de rodar o projeto, certifique-se de ter instalado:
 O projeto utiliza **OracleDB** através do módulo `oracledb`.
 
 1. Acesse a pasta:
-src/config/db.ts
+`src/config/db.ts`
 
 2. Edite as credenciais conforme o seu ambiente Oracle:
 
