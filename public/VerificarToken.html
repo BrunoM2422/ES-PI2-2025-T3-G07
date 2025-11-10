@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recuperar Senha - NotaDez</title>
+  <title>Verificar Token - NotaDez</title>
   <link rel="stylesheet" href="./styles/main.css">
-  <link rel="stylesheet" href="./styles/recuperarSenha.css">
+  <link rel="stylesheet" href="./styles/verificarToken.css">
 </head>
 <body>
   <div id="wrapper">
@@ -20,10 +20,10 @@
     </div>
 
     <div id="content">
-      <p>Recuperar Senha</p>
-      <form id="recover-form">
-        <input type="email" id="email" placeholder="Digite seu email" required>
-        <button type="submit">Enviar Token</button>
+      <p>Verificar Token</p>
+      <form id="token-form">
+        <input type="text" id="token" placeholder="Digite o token recebido" required>
+        <button type="submit">Verificar</button>
       </form>
       <div id="message"></div>
     </div>
@@ -40,6 +40,6 @@
     </div>
   </div>
 
-  <script src="../scripts/recuperarSenha.js"></script>
+  <script src="../scripts/verificarToken.js"></script>
 </body>
 </html>

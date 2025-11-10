@@ -6,6 +6,12 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import oracledb from "oracledb";
 import { getConnection, initOraclePool } from "./config/db.js";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+import { enviarEmailRecuperacao } from "./services/emailService.js";
+
+dotenv.config();
 
 /*
   Autores:
@@ -44,6 +50,18 @@ interface CreateAccount{
   email: string;
   telefone:string;
   password:string;
+}
+
+
+// Gera um token curto (6 dígitos hex -> 6 chars)
+function generateToken() {
+  return crypto.randomBytes(3).toString("hex").toUpperCase(); // ex: "A1F3B2"
+}
+
+// Formata Date para 'YYYY-MM-DD HH24:MI:SS' para uso em TO_TIMESTAMP
+function formatTimestampForOracle(d: Date) {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 // ===================================================
@@ -86,7 +104,7 @@ async function initializeDatabase() {
     `);
 
     // ==========================================
-    // 3. DISCIPLINA — vinculada à instituição
+    // 3. DISCIPLINA
     // ==========================================
     await connection.execute(`
       BEGIN
@@ -97,14 +115,15 @@ async function initializeDatabase() {
             sigla VARCHAR2(20),
             periodo_curso VARCHAR2(50),
             fk_instituicao_id_instituicao NUMBER,
-            CONSTRAINT fk_disciplina_instituicao FOREIGN KEY (fk_instituicao_id_instituicao) REFERENCES instituicao(id_instituicao) ON DELETE CASCADE
+            CONSTRAINT fk_disciplina_instituicao FOREIGN KEY (fk_instituicao_id_instituicao)
+              REFERENCES instituicao(id_instituicao) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 4. TRABALHA_EM (relaciona usuario ↔ instituicao)
+    // 4. TRABALHA_EM
     // ==========================================
     await connection.execute(`
       BEGIN
@@ -139,7 +158,7 @@ async function initializeDatabase() {
     `);
 
     // ==========================================
-    // 6. RELACIONAMENTO DISCIPLINA ↔ TURMA
+    // 6. DISCIPLINA_TURMA
     // ==========================================
     await connection.execute(`
       BEGIN
@@ -171,7 +190,7 @@ async function initializeDatabase() {
     `);
 
     // ==========================================
-    // 8. FAZ_PARTE (aluno ↔ turma)
+    // 8. FAZ_PARTE
     // ==========================================
     await connection.execute(`
       BEGIN
@@ -204,7 +223,6 @@ async function initializeDatabase() {
       END;
     `);
 
-
     // ==========================================
     // 10. AUDITORIA
     // ==========================================
@@ -222,9 +240,8 @@ async function initializeDatabase() {
       END;
     `);
 
-
     // ==========================================
-    // 11. MEDIA — aparece ao adicionar aluno e RA
+    // 11. MEDIA
     // ==========================================
     await connection.execute(`
       BEGIN
@@ -243,7 +260,7 @@ async function initializeDatabase() {
     `);
 
     // ==========================================
-    // 12. NOTAS - RELAÇÃO MEDIA ↔ COMPONENTE_NOTA
+    // 12. NOTAS
     // ==========================================
     await connection.execute(`
       BEGIN
@@ -260,14 +277,37 @@ async function initializeDatabase() {
       END;
     `);
 
-
     console.log("✅ Tabelas verificadas/criadas com sucesso.");
+
+    // ==========================================
+    // Adicionar colunas de recuperação de senha
+    // ==========================================
+    const colunas = await connection.execute(`
+      SELECT COLUMN_NAME FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'USUARIO'
+    `);
+    const existentes = colunas.rows?.map((r: any) => r.COLUMN_NAME) || [];
+
+    if (!existentes.includes("TOKEN_RECUPERACAO")) {
+      await connection.execute(`ALTER TABLE usuario ADD (token_recuperacao VARCHAR2(20))`);
+      console.log("🛠️ Coluna TOKEN_RECUPERACAO adicionada.");
+    }
+
+    if (!existentes.includes("EXPIRA_EM")) {
+      await connection.execute(`ALTER TABLE usuario ADD (expira_em TIMESTAMP)`);
+      console.log("🛠️ Coluna EXPIRA_EM adicionada.");
+    }
+
+    await connection.commit();
+    console.log("✅ Estrutura de recuperação de senha verificada com sucesso.");
+
   } catch (err) {
     console.error("❌ Erro ao inicializar banco:", err);
   } finally {
     if (connection) await connection.close();
   }
 }
+
+
 
 // ===================================================
 //  Criar conta
@@ -395,5 +435,132 @@ async function startServer() {
     process.exit(1);
   }
 }
+// =====================
+// Solicitar reset: gera token, grava no usuario, envia email
+// =====================
+app.post("/api/request-password-reset", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ ok: false, error: "Email é obrigatório." });
+
+    connection = await getConnection();
+
+    const result = await connection.execute("SELECT * FROM usuario WHERE email = :email", [email]);
+    const user = result.rows?.[0] as any;
+    if (!user) return res.status(404).json({ ok: false, error: "Usuário não encontrado." });
+
+    const token = generateToken();
+    const expireDate = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+    const expireStr = formatTimestampForOracle(expireDate);
+
+    // Atualiza o usuário com token e expiração
+    await connection.execute(
+      `UPDATE usuario
+       SET token_recuperacao = :token,
+           expira_em = TO_TIMESTAMP(:expira, 'YYYY-MM-DD HH24:MI:SS')
+       WHERE email = :email`,
+      { token, expira: expireStr, email },
+      { autoCommit: true }
+    );
+
+    // Envia email com o token
+    const mailOptions = {
+      from: process.env.FROM_EMAIL,
+      to: email,
+      subject: "Recuperação de senha - seu token",
+      text: `Você solicitou redefinição de senha. Use o token abaixo (válido por 15 minutos):\n\n${token}\n\nSe não foi você, ignore este email.`,
+      html: `<p>Você solicitou redefinição de senha. Use o token abaixo (válido por 15 minutos):</p>
+             <h2>${token}</h2>
+             <p>Se não foi você, ignore este email.</p>`
+    };
+
+    await enviarEmailRecuperacao(email, token);
+
+
+    res.json({ ok: true, message: "Token enviado para o email (se existir)." });
+  } catch (err) {
+    console.error("❌ Erro ao solicitar reset:", err);
+    res.status(500).json({ ok: false, error: "Erro no servidor." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// =====================
+// Verificar token
+// =====================
+app.post("/api/verify-token", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { email, token } = req.body;
+    if (!email || !token) return res.status(400).json({ ok: false, error: "Email e token são obrigatórios." });
+
+    connection = await getConnection();
+    const result = await connection.execute("SELECT token_recuperacao, expira_em FROM usuario WHERE email = :email", [email]);
+    const row = result.rows?.[0] as any;
+    if (!row || !row.TOKEN_RECUPERACAO) return res.status(404).json({ ok: false, error: "Token não encontrado para esse usuário." });
+
+    const storedToken = row.TOKEN_RECUPERACAO;
+    const expiresAt = row.EXPIRA_EM; // should be JS Date object
+
+    if (storedToken !== token) return res.status(401).json({ ok: false, error: "Token inválido." });
+
+    const now = new Date();
+    if (expiresAt && expiresAt instanceof Date && expiresAt < now) {
+      return res.status(401).json({ ok: false, error: "Token expirou." });
+    }
+
+    res.json({ ok: true, message: "Token válido." });
+  } catch (err) {
+    console.error("❌ Erro ao verificar token:", err);
+    res.status(500).json({ ok: false, error: "Erro no servidor." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// =====================
+// Resetar senha
+// =====================
+app.post("/api/reset-password", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { email, token, newPassword } = req.body;
+    if (!email || !token || !newPassword) return res.status(400).json({ ok: false, error: "Email, token e nova senha são obrigatórios." });
+
+    connection = await getConnection();
+    const result = await connection.execute("SELECT token_recuperacao, expira_em FROM usuario WHERE email = :email", [email]);
+    const row = result.rows?.[0] as any;
+    if (!row || !row.TOKEN_RECUPERACAO) return res.status(404).json({ ok: false, error: "Token não encontrado." });
+
+    const storedToken = row.TOKEN_RECUPERACAO;
+    const expiresAt = row.EXPIRA_EM;
+
+    if (storedToken !== token) return res.status(401).json({ ok: false, error: "Token inválido." });
+
+    if (expiresAt && expiresAt instanceof Date && expiresAt < new Date()) {
+      return res.status(401).json({ ok: false, error: "Token expirou." });
+    }
+
+    // Atualiza a senha e limpa token/expiração
+    await connection.execute(
+      `UPDATE usuario
+       SET senha = :senha,
+           token_recuperacao = NULL,
+           expira_em = NULL
+       WHERE email = :email`,
+      { senha: newPassword, email },
+      { autoCommit: true }
+    );
+
+    res.json({ ok: true, message: "Senha redefinida com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao resetar senha:", err);
+    res.status(500).json({ ok: false, error: "Erro no servidor." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
 startServer();
