@@ -80,198 +80,166 @@ async function initializeDatabase() {
         EXECUTE IMMEDIATE '
           CREATE TABLE usuario (
             id_usuario NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            email VARCHAR2(100) NOT NULL UNIQUE,
-            senha VARCHAR2(60) NOT NULL,
             nome VARCHAR2(100) NOT NULL,
-            telefone VARCHAR2(15) NOT NULL
+            sobrenome VARCHAR2(100) NOT NULL,
+            telefone VARCHAR2(20) NOT NULL,
+            email VARCHAR2(100) NOT NULL UNIQUE,
+            senha VARCHAR2(100) NOT NULL
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 2. INSTITUICAO
+    // 2. INSTITUICAO (COM FK PARA USUARIO)
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE instituicao (
             id_instituicao NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            nome VARCHAR2(100) NOT NULL
+            nome VARCHAR2(100) NOT NULL,
+            id_usuario NUMBER NOT NULL,
+            CONSTRAINT fk_instituicao_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 3. DISCIPLINA
+    // 3. CURSO (VINCULADO À INSTITUIÇÃO)
+    // ==========================================
+    await connection.execute(`
+      BEGIN
+        EXECUTE IMMEDIATE '
+          CREATE TABLE curso (
+            id_curso NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            periodo_curso NUMBER CHECK (periodo_curso BETWEEN 0 AND 10) NOT NULL,
+            nome VARCHAR2(100) NOT NULL,
+            id_instituicao NUMBER NOT NULL,
+            CONSTRAINT fk_curso_instituicao FOREIGN KEY (id_instituicao) REFERENCES instituicao(id_instituicao) ON DELETE CASCADE
+          )';
+      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+      END;
+    `);
+
+    // ==========================================
+    // 4. DISCIPLINA (SEM IDENTITY - ID MANUAL)
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE disciplina (
-            id_disciplina NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            nome_curso VARCHAR2(100) NOT NULL,
-            sigla VARCHAR2(20),
-            periodo_curso VARCHAR2(50),
-            fk_instituicao_id_instituicao NUMBER,
-            CONSTRAINT fk_disciplina_instituicao FOREIGN KEY (fk_instituicao_id_instituicao)
-              REFERENCES instituicao(id_instituicao) ON DELETE CASCADE
+            id_disciplina NUMBER NOT NULL PRIMARY KEY,
+            nome VARCHAR2(100) NOT NULL,
+            apelido VARCHAR2(50)
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 4. TRABALHA_EM
+    // 5. REL (RELACIONAMENTO CURSO ↔ DISCIPLINA)
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
-          CREATE TABLE trabalha_em (
-            fk_usuario_id_usuario NUMBER NOT NULL,
-            fk_instituicao_id_instituicao NUMBER NOT NULL,
-            CONSTRAINT pk_trabalha_em PRIMARY KEY (fk_usuario_id_usuario, fk_instituicao_id_instituicao),
-            CONSTRAINT fk_trab_usuario FOREIGN KEY (fk_usuario_id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-            CONSTRAINT fk_trab_instituicao FOREIGN KEY (fk_instituicao_id_instituicao) REFERENCES instituicao(id_instituicao) ON DELETE CASCADE
+          CREATE TABLE rel (
+            id_curso NUMBER NOT NULL,
+            id_disciplina NUMBER NOT NULL,
+            CONSTRAINT pk_rel PRIMARY KEY (id_curso, id_disciplina),
+            CONSTRAINT fk_rel_curso FOREIGN KEY (id_curso) REFERENCES curso(id_curso) ON DELETE CASCADE,
+            CONSTRAINT fk_rel_disciplina FOREIGN KEY (id_disciplina) REFERENCES disciplina(id_disciplina) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 5. TURMA
+    // 6. TURMA (SEM IDENTITY - ID MANUAL)
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE turma (
-            id_turma NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            id_turma NUMBER NOT NULL PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
+            horario TIMESTAMP NOT NULL,
+            dia DATE NOT NULL,
+            local VARCHAR2(100) NOT NULL,
             apelido VARCHAR2(50),
-            horario VARCHAR2(50),
-            local VARCHAR2(50),
-            dia VARCHAR2(20)
+            id_disciplina NUMBER NOT NULL,
+            CONSTRAINT fk_turma_disciplina FOREIGN KEY (id_disciplina) REFERENCES disciplina(id_disciplina) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 6. DISCIPLINA_TURMA
-    // ==========================================
-    await connection.execute(`
-      BEGIN
-        EXECUTE IMMEDIATE '
-          CREATE TABLE disciplina_turma (
-            fk_disciplina_id_disciplina NUMBER NOT NULL,
-            fk_turma_id_turma NUMBER NOT NULL,
-            CONSTRAINT pk_disciplina_turma PRIMARY KEY (fk_disciplina_id_disciplina, fk_turma_id_turma),
-            CONSTRAINT fk_disc_tur_disc FOREIGN KEY (fk_disciplina_id_disciplina) REFERENCES disciplina(id_disciplina) ON DELETE CASCADE,
-            CONSTRAINT fk_disc_tur_turma FOREIGN KEY (fk_turma_id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
-          )';
-      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
-      END;
-    `);
-
-    // ==========================================
-    // 7. ESTUDANTE
+    // 7. ESTUDANTE (SEM IDENTITY - ID MANUAL)
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE estudante (
-            id_estudante NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            id_estudante NUMBER NOT NULL PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
-            ra VARCHAR2(20) NOT NULL UNIQUE
+            id_turma NUMBER NOT NULL,
+            CONSTRAINT fk_estudante_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 8. FAZ_PARTE
-    // ==========================================
-    await connection.execute(`
-      BEGIN
-        EXECUTE IMMEDIATE '
-          CREATE TABLE faz_parte (
-            fk_aluno_id_estudante NUMBER NOT NULL,
-            fk_turma_id_turma NUMBER NOT NULL,
-            CONSTRAINT pk_faz_parte PRIMARY KEY (fk_aluno_id_estudante, fk_turma_id_turma),
-            CONSTRAINT fk_faz_aluno FOREIGN KEY (fk_aluno_id_estudante) REFERENCES estudante(id_estudante) ON DELETE CASCADE,
-            CONSTRAINT fk_faz_turma FOREIGN KEY (fk_turma_id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
-          )';
-      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
-      END;
-    `);
-
-    // ==========================================
-    // 9. COMPONENTE_NOTA
+    // 8. COMPONENTE_NOTA
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE componente_nota (
             id_componente_nota NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            peso NUMBER(4,2) CHECK (peso BETWEEN 0 AND 10),
             nome VARCHAR2(100) NOT NULL,
-            sigla VARCHAR2(20),
-            descricao VARCHAR2(200),
-            pesos NUMBER(5,2)
+            sigla VARCHAR2(20) NOT NULL,
+            descricao VARCHAR2(255),
+            nota NUMBER(4,2) CHECK (nota BETWEEN 0 AND 10)
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 10. AUDITORIA
+    // 9. AUDITORIA
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE auditoria (
             id_auditoria NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            data DATE NOT NULL,
-            hora VARCHAR2(10),
-            fk_turma_id_turma NUMBER,
-            CONSTRAINT fk_auditoria_turma FOREIGN KEY (fk_turma_id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
+            data DATE,
+            hora TIMESTAMP,
+            id_turma NUMBER NOT NULL,
+            CONSTRAINT fk_auditoria_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE SET NULL
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 11. MEDIA
+    // 10. MEDIA (RELACIONAMENTO ENTRE ESTUDANTE, COMPONENTE_NOTA E AUDITORIA)
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE media (
-            id_media NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            fk_estudante_id_estudante NUMBER NOT NULL,
-            fk_turma_id_turma NUMBER NOT NULL,
-            media_final NUMBER(5,2),
-            tipo_media VARCHAR2(20) DEFAULT ''Aritmética'',
-            CONSTRAINT fk_media_estud FOREIGN KEY (fk_estudante_id_estudante) REFERENCES estudante(id_estudante) ON DELETE CASCADE,
-            CONSTRAINT fk_media_turma FOREIGN KEY (fk_turma_id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
-          )';
-      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
-      END;
-    `);
-
-    // ==========================================
-    // 12. NOTAS
-    // ==========================================
-    await connection.execute(`
-      BEGIN
-        EXECUTE IMMEDIATE '
-          CREATE TABLE notas (
-            fk_media_id_media NUMBER NOT NULL,
-            fk_componente_id_componente NUMBER NOT NULL,
-            nota NUMBER(5,2) CHECK (nota BETWEEN 0 AND 10),
-            CONSTRAINT pk_notas PRIMARY KEY (fk_media_id_media, fk_componente_id_componente),
-            CONSTRAINT fk_notas_media FOREIGN KEY (fk_media_id_media) REFERENCES media(id_media) ON DELETE CASCADE,
-            CONSTRAINT fk_notas_componente FOREIGN KEY (fk_componente_id_componente) REFERENCES componente_nota(id_componente_nota) ON DELETE CASCADE
+            id_estudante NUMBER NOT NULL,
+            id_componente_nota NUMBER NOT NULL,
+            id_auditoria NUMBER NOT NULL,
+            CONSTRAINT pk_media PRIMARY KEY (id_estudante, id_componente_nota, id_auditoria),
+            CONSTRAINT fk_media_estudante FOREIGN KEY (id_estudante) REFERENCES estudante(id_estudante) ON DELETE CASCADE,
+            CONSTRAINT fk_media_componente FOREIGN KEY (id_componente_nota) REFERENCES componente_nota(id_componente_nota) ON DELETE CASCADE,
+            CONSTRAINT fk_media_auditoria FOREIGN KEY (id_auditoria) REFERENCES auditoria(id_auditoria) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
@@ -323,7 +291,6 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, error: "Todos os campos são obrigatórios." });
     }
 
-    const nomeCompleto = `${name.trim()} ${surname.trim()}`;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ ok: false, error: "Email inválido." });
@@ -343,14 +310,15 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
 
     // Inserir usuário
     const result = await connection.execute(
-      `INSERT INTO usuario (email, senha, nome, telefone)
-       VALUES (:email, :senha, :nome, :telefone)
+      `INSERT INTO usuario (nome, sobrenome, email, telefone, senha)
+       VALUES (:nome, :sobrenome, :email, :telefone, :senha)
        RETURNING id_usuario INTO :id`,
       {
+        nome: name.trim(),
+        sobrenome: surname.trim(),
         email,
-        senha: password,
-        nome: nomeCompleto,
         telefone: telephone,
+        senha: password,
         id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
       },
       { autoCommit: true }
@@ -367,6 +335,7 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
     if (connection) await connection.close();
   }
 });
+
 
 // ===================================================
 //  Login
@@ -400,6 +369,7 @@ app.post("/api/login", async (req: Request, res: Response) => {
         id_usuario: user.ID_USUARIO,
         email: user.EMAIL,
         nome: user.NOME,
+        sobrenome: user.SOBRENOME,
       },
     });
   } catch (err) {
@@ -409,6 +379,7 @@ app.post("/api/login", async (req: Request, res: Response) => {
     if (connection) await connection.close();
   }
 });
+
 
 // ===================================================
 //  Rotas estáticas
