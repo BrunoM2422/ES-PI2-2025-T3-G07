@@ -1,3 +1,8 @@
+
+/* Autores: 
+            Nicolas Mitjans Nunes
+            Pedro Henrique Ribeiro Silva Murta
+*/
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("token-form");
   const tokenInput = document.getElementById("token");
