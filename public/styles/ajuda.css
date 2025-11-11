@@ -3,30 +3,46 @@
         Bruno Lenitta Machado
         Nicolas Mitjans Nunes
 */
-#content {
-    max-width: 600px;
+/*Cria o estilo do content ajuda*/
+#content { 
+    max-width: 600px; /*Tamanho máximo do contêiner*/
+    /*Tamanhos*/
     margin: 40px auto;
     padding: 20px;
+    /*Cor do fundo*/
     background: #ffffff;
+    /*Arredonda as quinas do contêiner*/
     border-radius: 10px;
+    /*Adiciona sombra ao redor da caixa*/
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    /*Coloca o texto no centro*/
     text-align: center;
 }
 
+/*Modifica a classe ajuda-form*/
+
 .ajuda-form {
+    /*Faz com que o formulário fique flexível*/
     display: flex;
+    /*Organiza os item em colunas*/
     flex-direction: column;
+    /*Espaçamento entre os elementos dentro do forms*/
     gap: 15px;
+    /*Alinha o texto*/
     text-align: left;
 }
 
 .ajuda-form label {
+    /*Deixa a fonte mais grossa*/
     font-weight: bold;
+    /*Adiciona um espaço em baixo*/
     margin-bottom: 5px;
 }
 
+/*modifica a área do input*/
 .ajuda-form input,
 .ajuda-form textarea {
+    /*Modifica tamanhos*/
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -35,7 +51,9 @@
 }
 
 .ajuda-form button {
+    /*Modifica tamanhos do botão*/
     padding: 12px;
+    /*Modifica cores*/
     background: #0073e6;
     color: white;
     border: none;
@@ -46,5 +64,6 @@
 }
 
 .ajuda-form button:hover {
+    /*Muda a cor de fundo do botão quando o cursor está sobre ele*/
     background: #005bb5;
 }

@@ -5,17 +5,20 @@
         Atualização: Gabriel Scolfaro & ChatGPT (2025)
 */
 
+/*Modifica o content de hub*/
 #content {
-    flex: 1;
-    padding: 40px 20px;
-    background: #f5f8fc;
-    display: flex;
+    flex: 1; /*Ocupar todo o espaço vertical*/
+    padding: 40px 20px; /*Adiciona espaço*/
+    background: #f5f8fc; /*Muda a cor de fundo*/
+    display: flex; /*Mostra de modo flexível*/
     justify-content: center;
     align-items: flex-start;
+    /*Define um tamanho mínimo*/
     min-height: 80vh;
 }
 
 .hub-container {
+    /*Define tamanhos e cores*/
     width: 100%;
     max-width: 950px;
     background: #fff;
@@ -26,14 +29,16 @@
 
 /* ===== Cabeçalho ===== */
 .hub-header {
+    /*Define tamanhos*/
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
-    border-bottom: 2px solid #0077cc;
+    border-bottom: 2px solid #0077cc; /*Cria uma borda com cor*/
     padding-bottom: 10px;
 }
 
+/*Modifica a cor e tamanhos*/
 #page-title {
     color: #003366;
     font-size: 22px;
@@ -41,46 +46,54 @@
 }
 
 .hub-actions {
-    display: flex;
-    gap: 10px;
+    display: flex; 
+    gap: 10px; /*Adiciona espaçamento entre elementos dentro do formulário*/
 }
 
 /* ===== Botões ===== */
+/*Modifica características dos botões*/
 #add-button,
 #back-button {
+    /*Muda os tamanhos*/
     border: none;
     border-radius: 8px;
     padding: 10px 18px;
     font-size: 15px;
     font-weight: 600;
-    cursor: pointer;
-    transition: all 0.25s ease;
+    cursor: pointer; /*Muda o cursor*/
+    transition: all 0.25s ease; /*Define características da transição*/
 }
 
 #add-button {
+    /*Muda as cores*/
     background-color: #0077cc;
     color: #fff;
 }
 #add-button:hover {
+    /*Muda as cores quando o cursor está em cima do botão*/
     background-color: #005fa3;
     transform: translateY(-2px);
 }
 
 #back-button {
+    /*Muda as cores do back-button*/
     background-color: #ccc;
     color: #333;
 }
 #back-button:hover {
+    /*Muda as cores quando o cursor está em cima do botão*/
     background-color: #999;
     transform: translateY(-2px);
 }
 
-.hidden { display: none !important; }
+.hidden { display: none !important; } 
 
-/* ===== Tabela ===== */
+/* ===== Tabela ===== */ 
+/*Define o estilo das tabelas de hub*/
 .table-wrapper { overflow-x: auto; }
 
 #data-table {
+    /*Modifica tamanhos*/
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
@@ -89,17 +102,19 @@
 
 /* Cabeçalho da tabela */
 #data-table th {
+    /*Modifica cores e tamanhos*/
     background-color: #0077cc;
     color: white;
     padding: 12px;
     text-align: center;
     font-weight: 600;
     cursor: default;
-    vertical-align: middle;
+    vertical-align: middle; /*Modifica alinhamento para o meio*/
 }
 
 /* Células da tabela */
 #data-table td {
+    /*Modifica cores e tamanhos*/
     background-color: #fff;
     border-bottom: 1px solid #e0e0e0;
     padding: 10px 12px;
@@ -115,18 +130,21 @@
 }
 
 #data-table tr:hover td {
+    /*Muda a cor quando está em cima*/
     background-color: #f0f8ff;
 }
 
 /* Células que contêm notas */
 .grade-cell,
 #data-table td.grade-cell input {
+    /*Modifica alinhamentos*/
     text-align: center;
     vertical-align: middle;
 }
 
 /* Campos de nota dentro das células */
 #data-table td input {
+    /*Modifica tamanhos e cores*/
     width: 55px;
     text-align: center;
     border: 1px solid #ddd;
@@ -138,16 +156,17 @@
 
 /* Linhas de componentes (P1, P2, etc.) */
 .component-header {
-    cursor: pointer;
-    background-color: #006bb3;
-    transition: background 0.3s;
+    cursor: pointer; /*Modifica o cursor*/
+    background-color: #006bb3; /*Modifica a cor de fundo*/
+    transition: background 0.3s; /*Define como deve ser a transição*/
 }
 .component-header:hover {
-    background-color: #005fa3;
+    background-color: #005fa3; /*Modifica a cor*/
 }
 
 /* ===== Modal ===== */
 .modal {
+    /*Define tamanhos, cores e alinhamento*/
     position: fixed;
     top: 0;
     left: 0;
@@ -162,6 +181,7 @@
 .modal.hidden { display: none; }
 
 .modal-content {
+    /*Define tamanhos, cores e alinhamento*/
     background-color: #fff;
     border-radius: 12px;
     padding: 25px;
@@ -171,6 +191,7 @@
     animation: modalFadeIn 0.25s ease;
 }
 #close-modal {
+    /*Define tamanhos, cores e alinhamento*/
     position: absolute;
     top: 10px;
     right: 14px;
@@ -180,12 +201,14 @@
 }
 #close-modal:hover { color: #000; }
 .modal-content h3 {
+    /*Define tamanhos, cores e alinhamento*/
     margin-bottom: 20px;
     color: #0077cc;
     font-size: 18px;
     text-align: center;
 }
 .modal-content input {
+    /*Define tamanhos, cores e alinhamento*/
     width: 100%;
     margin-bottom: 15px;
     padding: 10px;
@@ -194,6 +217,7 @@
     font-size: 15px;
 }
 .modal-content button {
+    /*Define tamanhos, cores e alinhamento*/
     width: 100%;
     background-color: #0077cc;
     color: #fff;
@@ -203,12 +227,13 @@
     font-weight: 600;
     font-size: 15px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s; /*Define a transição*/
 }
 .modal-content button:hover { background-color: #005fa3; }
 
 /* ===== Área de Média ===== */
 #grading-div {
+    /*Modifica cores e tamanhos*/
     margin-top: 25px;
     padding: 20px;
     background-color: #f0f7ff;
@@ -217,12 +242,14 @@
     text-align: center;
 }
 #grading-div h3 {
+    /*Modifica cores e tamanhos*/
     color: #005fa3;
     font-size: 18px;
     margin-bottom: 10px;
 }
 
 #add-average, #add-comp, .btn-primary {
+    /*Modifica cores e tamanhos*/
     background: linear-gradient(135deg, #0077cc, #0099ff);
     color: #fff;
     border: none;
@@ -234,15 +261,18 @@
     box-shadow: 0 3px 8px rgba(0, 119, 204, 0.25);
     margin: 8px auto;
     display: block;
-    transition: all 0.25s ease-in-out;
+    transition: all 0.25s ease-in-out; /*Modifica a transição*/
 }
+
 #add-average:hover, #add-comp:hover, .btn-primary:hover {
+    /*Modifica a translação e cores*/
     transform: translateY(-2px);
     background: linear-gradient(135deg, #005fa3, #0077cc);
     box-shadow: 0 5px 12px rgba(0, 119, 204, 0.35);
 }
 
 .grade-cell {
+    /*Modifica tamanhos, cores e alinhamento*/
     text-align: center;
     min-width: 60px;
     background-color: #fafcff;
@@ -250,6 +280,7 @@
 }
 
 #no-records {
+    /*Modifica tamanhos e cores*/
     margin-top: 18px;
     color: #777;
     font-style: italic;
@@ -262,14 +293,15 @@
 
 /* ===== Botão Editar Tipo de Média ===== */
 .edit-average-btn {
+    /*Modifica cores e tamanhos*/
     background-color: #f0ad4e;          /* tom laranja suave */
     color: white;
     border: none;
     border-radius: 10px;
     padding: 10px 18px;
     font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s ease;
+    cursor: pointer;/*Modifica o cursor*/
+    transition: 0.3s ease; /*Modifica a transição*/
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     margin-left: 10px;
 }
@@ -286,6 +318,7 @@
 
 /* ===== Seletor visual de dias da semana ===== */
 .week-days {
+    /*Define tamanhos e alinhamento*/
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -294,8 +327,10 @@
 }
 
 .week-days label {
+    /*Modifica o cursor*/
   user-select: none;
   cursor: pointer;
+  /*Define cor de fundo e tamanhos*/
   padding: 8px 12px;
   background: #e3e3e3;
   border-radius: 6px;
@@ -309,6 +344,7 @@
 }
 
 .week-days input:checked + span {
+    /*Define cores e tamanho da borda*/
   background: #4a90e2;
   color: white;
   border-radius: 6px;
@@ -317,6 +353,7 @@
 
 /* ===== Campo de descrição (Textarea) ===== */
 textarea {
+    /*Define tamanhos e cores*/
   width: 100%;
   min-height: 80px;
   resize: vertical;
@@ -324,13 +361,14 @@ textarea {
   border: 2px solid #ddd;
   border-radius: 8px;
   font-size: 14px;
-  font-family: inherit;
+  font-family: inherit; /*Modifica o tipo de fonte*/
   transition: 0.2s ease;
   background: #fafafa;
   outline: none;
 }
 
 textarea:focus {
+    /*Modifica cores*/
   border-color: #4a90e2;
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);

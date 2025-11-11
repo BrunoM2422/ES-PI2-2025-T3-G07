@@ -3,47 +3,59 @@
         Bruno Lenitta Machado
         Nicolas Mitjans Nunes
 */
+/*Define as especificidades do content de criar conta*/
 #content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px;
+    flex: 1; /*Faz ocupar todo o espaço vertical existente*/
+    display: flex; /*Alinhamento flexível*/
+    flex-direction: column; /*Organiza os itens um embaixo do outro*/
+    align-items: center; /*Centraliza o conteúdo*/
+    justify-content: center; /*Centraliza verticalmente*/
+    padding: 40px; /*Adiciona espaço interno*/
 }
 
-#content p {
+#content p { /*Define tamanhos específicos para os parágrafos
+                dentro de content*/
     font-size: 20px;
     margin-bottom: 20px;
     font-weight: bold;
 }
 
+/*Modifica a tag form*/
 form {
+    /*Transforma o formulário em um contêiner flexível*/
     display: flex;
     flex-direction: column;
+    /*Adiciona espaços*/
     gap: 15px;
     width: 250px;
 }
 
+/*Modifica a tag input*/
 input {
+    /*Modifica espaços espaços*/
     padding: 10px;
     border: 1px solid #aaa;
     border-radius: 8px;
     font-size: 14px;
 }
 
+/*Modifica a tag button*/
 button {
+    /*Modifica as cores*/
     background-color: #0077cc;
     color: white;
+    /*Modifica espaçamento*/
     padding: 10px;
     border: none;
     border-radius: 8px;
     font-size: 16px;
+    /*Modifica o cursor*/
     cursor: pointer;
     transition: background 0.3s;
 }
 
 button:hover {
+    /*Modifica a cor do botão quando está com o cursor em cima*/
     background-color: #005fa3;
 }
 

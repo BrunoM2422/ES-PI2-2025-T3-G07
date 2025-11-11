@@ -3,22 +3,29 @@
         Bruno Lenitta Machado
         Nicolas Mitjans Nunes
 */
+/*Modifica o content de contato*/
 #content {
+    /*Define tamanhos*/
     max-width: 500px;
     margin: 40px auto;
     padding: 20px;
-    background: #ffffff;
+    background: #ffffff; /*Define cor*/
     border-radius: 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    /*Define alinhamento para central*/
     text-align: center;
 }
 
+/*Modifica a classe contato-info*/
 .contato-info {
+    /*Define tamanhos*/
     margin-top: 20px;
     font-size: 18px;
     line-height: 1.6;
 }
 
 .contato-info p {
+    /*Define o tamanho do parágrafo 
+    dentro do bloco .contato-info*/
     margin: 10px 0;
 }
