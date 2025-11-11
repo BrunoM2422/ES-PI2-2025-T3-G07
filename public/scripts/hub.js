@@ -9,6 +9,7 @@
 const addBtn = document.getElementById("add-button");
 const backBtn = document.getElementById("back-button");
 const csvBtn = document.getElementById("csv-button");
+const exportCsvBtn = document.getElementById("export-csv-button")
 const tableBody = document.getElementById("table-body");
 const tableHeader = document.getElementById("table-header");
 const pageTitle = document.getElementById("page-title");
@@ -36,6 +37,7 @@ function renderTable() {
         addBtn.textContent = "+ Adicionar Instituição";
         backBtn.classList.add("hidden");
         csvBtn.classList.add("hidden");
+        exportCsvBtn.classList.add("hidden");
         tableHeader.innerHTML = `<th>Instituição</th><th>Curso</th>`;
         rows = data.institutions.map((inst, idx) =>
             `<tr data-index="${idx}" data-type="institution"><td>${inst.name}</td><td>${inst.course}</td></tr>`
@@ -48,6 +50,8 @@ function renderTable() {
         addBtn.textContent = "+ Adicionar Disciplina";
         csvBtn.classList.add("hidden");
         backBtn.classList.remove("hidden");
+        exportCsvBtn.classList.add("hidden");
+
 
         tableHeader.innerHTML = `<th>Disciplina</th><th>Código</th><th>Período</th><th>Apelido</th>`;
 
@@ -68,6 +72,8 @@ function renderTable() {
         addBtn.textContent = "+ Adicionar Turma";
         csvBtn.classList.add("hidden");
         backBtn.classList.remove("hidden");
+        exportCsvBtn.classList.add("hidden");
+
 
         tableHeader.innerHTML = `
             <th>Turma</th>
@@ -89,12 +95,16 @@ function renderTable() {
 
     // ===== Nível 3 - Alunos =====
     } else if (path.length === 3) {
+        
         const cls = data.institutions[path[0]].subjects[path[1]].classes[path[2]];
         pageTitle.textContent = `Alunos da turma ${cls.number}`;
         addBtn.textContent = "+ Adicionar Aluno";
         backBtn.classList.remove("hidden");
         csvBtn.classList.remove("hidden");
+        exportCsvBtn.classList.remove("hidden");
         csvBtn.onclick = importCSV;
+        exportCsvBtn.onclick = exportCSV;
+
         tableHeader.innerHTML = `<th>Nome</th><th>RA</th>`;
         if (cls.grading && cls.grading.components.length) {
             cls.grading.components.forEach((c, i) => {
@@ -532,6 +542,65 @@ function csvData (csvText) {
     }
     renderTable();
 }
+
+function exportCSV(){
+    const cls = data.institutions[path[0]].subjects[path[1]].classes[path[2]];
+    const students = cls.students || [];
+    
+    if (students.length === 0){
+        alert("Não há estudantes cadastrados.");
+        return;
+    }
+
+    const separator = ';';
+
+    let headers = ['Nome', 'RA'];
+
+    if(cls.grading && cls.grading.components.length){
+        cls.grading.components.forEach (comp =>{            
+            headers.push(comp.nickname);
+        });
+
+        headers.push("Média");
+    }
+    
+    let csvContent = headers.join(separator) + "\n";
+
+    students.forEach(stu =>{
+    let row = [];
+    row.push(stu.name);
+    row.push(stu.ra);
+
+    if (cls.grading && cls.grading.components.length){
+        cls.granding.components.forEach((comp, index) => {
+            const grade = stu.grades[index] !== undefined ? stu.grades[index] : 0;
+                row.push(grade.toString().replace('.',','));
+                    });
+                }
+                    const media = stu.media !== undefined ? stu.media.toFixed(2).replace('.',',') : '-';
+                    row.push(media);
+
+                    csvContent += row.join(separator) + "\n";
+        
+            });
+        
+        const blob = new Blob (["\uFEFF" + csvContent], {type: 'text/csv;charset=utf-8;'});
+        const link = document.createElement("a");
+    
+        // Cria uma URL para o Blob
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        
+        link.download = `export_${cls.number}.csv`;
+        document.body.appendChild(link);
+        
+        link.click();
+        
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url); // Libera a memória
+        
+}
+
 
 // ===== Inicialização =====
 renderTable();

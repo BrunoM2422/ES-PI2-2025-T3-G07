@@ -54,6 +54,7 @@
 /*Modifica características dos botões*/
 #add-button,
 #csv-button,
+#export-csv-button,
 #back-button {
     /*Muda os tamanhos*/
     border: none;
@@ -66,12 +67,14 @@
 }
 
 #add-button,
+#export-csv-button,
 #csv-button {
     /*Muda as cores*/
     background-color: #0077cc;
     color: #fff;
 }
 #add-button:hover,
+#export-csv-button:hover,
 #csv-button:hover {
     /*Muda as cores quando o cursor está em cima do botão*/
     background-color: #005fa3;
