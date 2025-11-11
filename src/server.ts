@@ -219,7 +219,7 @@ async function initializeDatabase() {
             id_auditoria NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             data DATE,
             hora TIMESTAMP,
-            id_turma NUMBER NOT NULL,
+            id_turma NUMBER,
             CONSTRAINT fk_auditoria_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE SET NULL
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
@@ -375,6 +375,195 @@ app.post("/api/login", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("❌ Erro no login:", err);
     res.status(500).json({ ok: false, error: "Erro interno no servidor." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+
+// ===================================================
+//  Instituição - (CRIA E CONSULTA)
+// ===================================================
+app.post("/api/institutions", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { name, id_usuario } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({ ok: false, error: "Nome da instituição é obrigatório." });
+    }
+
+    if (!id_usuario) {
+      return res.status(400).json({ ok: false, error: "Usuário não autenticado." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se o usuário existe
+    const userCheck = await connection.execute(
+      "SELECT COUNT(*) AS user_count FROM usuario WHERE id_usuario = :id_usuario",
+      [id_usuario]
+    );
+
+    const userCount = (userCheck.rows?.[0] as any).USER_COUNT;
+    if (userCount === 0) {
+      return res.status(404).json({ ok: false, error: "Usuário não encontrado." });
+    }
+
+    const result = await connection.execute(
+      `INSERT INTO instituicao (nome, id_usuario)
+        VALUES (:nome, :id_usuario)
+        RETURNING id_instituicao INTO :id`,
+      { 
+        nome: name.trim(),
+        id_usuario: id_usuario,
+        id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      },
+      { autoCommit: true }
+    );
+    const outBinds = result.outBinds as { id: number[] };
+    const instituicaoId = outBinds.id[0];
+
+    res.status(201).json({ ok: true, message: "Instituição criada com sucesso!", instituicaoId });
+  } catch (err) {
+    console.error("❌ Erro ao criar instituição:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao criar instituição." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Consulta instituições
+app.get('/api/institutions', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_usuario, name } = req.query;
+    
+    connection = await getConnection();
+    
+    let query = 'SELECT id_instituicao, nome, id_usuario FROM instituicao WHERE 1=1';
+    const params: any[] = [];
+
+    if (id_usuario) {
+      query += ' AND id_usuario = :id_usuario';
+      params.push(id_usuario);
+    }  
+    if (name) {
+        query += ' AND UPPER(nome) LIKE UPPER(:name)';
+      params.push(`%${name}%`);
+    }
+      
+    query += ' ORDER BY nome';  
+    const result = await connection.execute(query, params);
+    const institutions = result?.rows || [];
+
+    res.json({ ok: true, institutions, count: institutions.length });
+  } catch (err) {
+    console.error("❌ Erro ao buscar instituições:", err);
+    res.status(500).json({ ok: false, error: 'Erro ao buscar instituições' });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+
+// ===================================================
+//  Curso - (CRIA E CONSULTA)
+// ===================================================
+
+app.post("/api/courses", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { name, period, id_instituicao} = req.body;
+    if (!name?.trim() || !period ) {
+      return res.status(400).json({ ok: false, error: "Nome e período do curso são obrigatórios." });
+    }
+    if (period < 0 || period > 10) {
+    return res.status(400).json({ ok: false, error: "Período deve estar entre 0 e 10." });
+    }
+
+    if (!id_instituicao) {
+      return res.status(400).json({ ok: false, error: "Instituição é obrigatória." });
+    }
+
+    connection = await getConnection();
+
+
+    // Verifica se a instituição existe
+    const institutionCheck  = await connection.execute(
+      "SELECT COUNT(*) AS institution_count  FROM instituicao WHERE id_instituicao = :id_instituicao",
+      [id_instituicao]
+    );
+
+    const institutionCount = (institutionCheck.rows?.[0] as any).INSTITUTION_COUNT;
+    if (institutionCount === 0) {
+      return res.status(404).json({ ok: false, error: "Instituição não encontrada." });
+    }
+
+    const result = await connection.execute(
+      `INSERT INTO curso (nome, periodo_curso, id_instituicao)
+        VALUES (:nome, :periodo_curso, :id_instituicao)
+        RETURNING id_curso INTO :id`,
+      { 
+        nome: name.trim(),
+        periodo_curso: period,
+        id_instituicao: id_instituicao,
+        id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      },
+      { autoCommit: true }
+    );
+    const outBinds = result.outBinds as { id: number[] };
+    const cursoId = outBinds.id[0];
+
+    res.status(201).json({ ok: true, message: "Curso criado com sucesso!", cursoId });
+  } catch (err) {
+    console.error("❌ Erro ao criar curso:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao criar curso." });
+  } finally {
+    if (connection) await connection.close();
+  }
+
+});
+
+// Consulta cursos
+app.get("/api/courses", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_instituicao, name, period} = req.query;
+
+    connection = await getConnection();
+
+    let query = `
+      SELECT c.id_curso, c.nome, c.periodo_curso, c.id_instituicao, i.nome as instituicao_nome
+      FROM curso c
+      INNER JOIN instituicao i ON c.id_instituicao = i.id_instituicao
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (id_instituicao) {
+      query += ' AND c.id_instituicao = :id_instituicao';
+      params.push(id_instituicao);
+    }
+    if (name) {
+      query += ' AND UPPER(c.nome) LIKE UPPER(:name)';
+      params.push(`%${name}%`);
+    }
+    if (period) {
+      query += ' AND c.periodo_curso = :periodo_curso';
+      params.push(period);
+    }
+    
+    query += ' ORDER BY c.nome, c.periodo_curso';
+
+    const result = await connection.execute(query, params);
+    const courses = result.rows || [];
+    
+    
+    res.json({ ok: true, courses, count: courses.length });
+  } catch (err) {
+    console.error("❌ Erro ao buscar cursos:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao buscar cursos." });
   } finally {
     if (connection) await connection.close();
   }
