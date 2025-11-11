@@ -135,6 +135,7 @@
 #data-table tr:hover td {
     /*Muda a cor quando está em cima*/
     background-color: #f0f8ff;
+    cursor: pointer; /*Muda o cursor*/
 }
 
 /* Células que contêm notas */
@@ -344,14 +345,14 @@
 
 .week-days input {
   display: none;
+
 }
 
 .week-days input:checked + span {
     /*Define cores e tamanho da borda*/
-  background: #4a90e2;
-  color: white;
+    background: #4a90e2;
+    color: white;
   border-radius: 6px;
-
 }
 
 /* ===== Campo de descrição (Textarea) ===== */
