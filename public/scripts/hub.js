@@ -1,12 +1,14 @@
 /*
     Autores originais:
         Bruno Lenitta Machado
+        Matheus Antony Lucas Lima
         Nicolas Mitjans Nunes
     Atualização: Sistema de Médias e Notas + Novos campos de disciplina e turma + componentes com apelido/descrição (2025)
 */
 
 const addBtn = document.getElementById("add-button");
 const backBtn = document.getElementById("back-button");
+const csvBtn = document.getElementById("csv-button");
 const tableBody = document.getElementById("table-body");
 const tableHeader = document.getElementById("table-header");
 const pageTitle = document.getElementById("page-title");
@@ -33,6 +35,7 @@ function renderTable() {
         pageTitle.textContent = "Instituições e Cursos Cadastrados";
         addBtn.textContent = "+ Adicionar Instituição";
         backBtn.classList.add("hidden");
+        csvBtn.classList.add("hidden");
         tableHeader.innerHTML = `<th>Instituição</th><th>Curso</th>`;
         rows = data.institutions.map((inst, idx) =>
             `<tr data-index="${idx}" data-type="institution"><td>${inst.name}</td><td>${inst.course}</td></tr>`
@@ -43,6 +46,7 @@ function renderTable() {
         const inst = data.institutions[path[0]];
         pageTitle.textContent = `Disciplinas do curso ${inst.course}`;
         addBtn.textContent = "+ Adicionar Disciplina";
+        csvBtn.classList.add("hidden");
         backBtn.classList.remove("hidden");
 
         tableHeader.innerHTML = `<th>Disciplina</th><th>Código</th><th>Período</th><th>Apelido</th>`;
@@ -62,6 +66,7 @@ function renderTable() {
         const subj = inst.subjects[path[1]];
         pageTitle.textContent = `Turmas de ${subj.name}`;
         addBtn.textContent = "+ Adicionar Turma";
+        csvBtn.classList.add("hidden");
         backBtn.classList.remove("hidden");
 
         tableHeader.innerHTML = `
@@ -88,7 +93,8 @@ function renderTable() {
         pageTitle.textContent = `Alunos da turma ${cls.number}`;
         addBtn.textContent = "+ Adicionar Aluno";
         backBtn.classList.remove("hidden");
-
+        csvBtn.classList.remove("hidden");
+        csvBtn.onclick = importCSV;
         tableHeader.innerHTML = `<th>Nome</th><th>RA</th>`;
         if (cls.grading && cls.grading.components.length) {
             cls.grading.components.forEach((c, i) => {
@@ -460,6 +466,70 @@ function calcularMedia(cls) {
             stu.media = somaPond / 10;
         }
     });
+    renderTable();
+}
+
+//Importar o CSV 
+function importCSV(){
+    
+    const csvFileInput = document.createElement ('input');
+    csvFileInput.type = 'file';
+    csvFileInput.accept = '.csv'; //para aceitar apenas CSV
+    csvFileInput.style.display = 'none';
+    document.body.appendChild(csvFileInput);
+    
+    
+    csvFileInput.addEventListener ('change', (event)=>
+    {
+        const file = event.target.files[0];
+
+        if (file){
+            const fileReader = new FileReader();
+
+            fileReader.onload = (e) => {
+                const csvText = e.target.result;
+                csvData(csvText);
+            };
+
+            fileReader.onerror = () => {
+                alert("Erro ao ler o arquivo");
+            };
+
+            fileReader.readAsText(file);
+
+        }
+
+    });
+
+    csvFileInput.click();
+}
+
+function csvData (csvText) {
+    const cls = data.institutions[path[0]].subjects[path[1]].classes[path[2]];
+    const lines = csvText.split(/\r?\n/);
+
+    let count = 0;
+
+    for (let i = 1; i < lines.length; i++){
+        const line = lines[i].trim();
+
+        if (line === "") continue;
+
+        const columns = line.split(';');
+
+        if (columns.length>=2){
+            const name = columns[0].trim();
+            const ra = columns[1].trim();
+
+            cls.students.push({
+                name : name,
+                ra : ra,
+                grades : []
+            });
+            count++;
+        }
+
+    }
     renderTable();
 }
 

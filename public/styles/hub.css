@@ -53,6 +53,7 @@
 /* ===== Botões ===== */
 /*Modifica características dos botões*/
 #add-button,
+#csv-button,
 #back-button {
     /*Muda os tamanhos*/
     border: none;
@@ -64,12 +65,14 @@
     transition: all 0.25s ease; /*Define características da transição*/
 }
 
-#add-button {
+#add-button,
+#csv-button {
     /*Muda as cores*/
     background-color: #0077cc;
     color: #fff;
 }
-#add-button:hover {
+#add-button:hover,
+#csv-button:hover {
     /*Muda as cores quando o cursor está em cima do botão*/
     background-color: #005fa3;
     transform: translateY(-2px);
