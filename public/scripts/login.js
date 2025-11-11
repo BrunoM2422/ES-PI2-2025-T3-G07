@@ -1,4 +1,7 @@
-// Autor: Pedro Henrique Ribeiro Silva Murta
+/* Autores: Gabriel Scolfaro de Azeredo
+            Pedro Henrique Ribeiro Silva Murta
+
+*/
 document.addEventListener('DOMContentLoaded', function() {
     // Pega os elementos do formulário
     const loginForm = document.querySelector('form');

@@ -1,3 +1,7 @@
+/*  
+  Autores: Nicolas Mitjans Nunes
+           Pedro Henrique Ribeiro Silva Murta
+ */
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("recover-form");
     const emailInput = document.getElementById("email");

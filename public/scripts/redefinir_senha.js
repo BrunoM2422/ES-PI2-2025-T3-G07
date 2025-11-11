@@ -1,3 +1,6 @@
+/*
+  Autores: Nicolas Mitjans Nunes
+*/
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("reset-form");
     const newPasswordInput = document.getElementById("newPassword");
