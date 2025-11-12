@@ -238,6 +238,10 @@
 }
 .modal-content button:hover { background-color: #005fa3; }
 
+
+
+
+
 /* ===== Área de Média ===== */
 #grading-div {
     /*Modifica cores e tamanhos*/
@@ -386,3 +390,92 @@ textarea::placeholder {
   font-style: italic;
 }
 
+/* ===== Estilos específicos para o modal "Adicionar Turma" ===== */
+
+/* amplia só essa modal-content */
+.modal-content.add-class-modal-content {
+  width: 1060px;       /* mais largo para caber os 7 blocos (ajuste se quiser) */
+  max-width: 96vw;
+}
+
+/* wrapper interno para centralizar inputs */
+.add-class-modal-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* grade dos dias: 4 colunas fixas na primeira linha */
+.add-class-modal .modal-week-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px 12px;
+  justify-items: center;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 6px 0;
+}
+
+/* faz com que os 4 primeiros ocupem a 1ª linha e os 3 últimos automaticamente a 2ª */
+.add-class-modal .day-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: #f8fbff;
+  border: 1px solid #e2eef9;
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 90px;
+  max-width: 120px;
+}
+
+/* label + checkbox em cima (checkbox pequeno) */
+.add-class-modal .day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #034a7a;
+}
+.add-class-modal .day-toggle input[type="checkbox"] {
+  transform: scale(1.08);
+  accent-color: #0077cc;
+  cursor: pointer;
+}
+
+/* inputs de horário alinhados em linha */
+.add-class-modal .time-inputs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* estilo dos time inputs */
+.add-class-modal input[type="time"] {
+  width: 78px;
+  padding: 6px 8px;
+  border: 1px solid #ccdbea;
+  border-radius: 6px;
+  font-size: 11px;
+  background: #fff;
+}
+
+/* separador visual entre start e end */
+.add-class-modal .time-sep {
+  color: #666;
+  font-weight: 600;
+}
+
+/* pequenos ajustes responsivos: em telas estreitas passar para 3 colunas */
+@media (max-width: 640px) {
+  .modal-content.add-class-modal-content {
+    width: 92vw;
+  }
+  .add-class-modal .modal-week-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

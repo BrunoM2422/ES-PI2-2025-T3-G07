@@ -32,16 +32,22 @@ function renderTable() {
     if (gradingDiv) gradingDiv.remove();
 
     // ===== Nível 0 - Instituições =====
-    if (path.length === 0) {
-        pageTitle.textContent = "Instituições e Cursos Cadastrados";
-        addBtn.textContent = "+ Adicionar Instituição";
-        backBtn.classList.add("hidden");
-        csvBtn.classList.add("hidden");
-        exportCsvBtn.classList.add("hidden");
-        tableHeader.innerHTML = `<th>Instituição</th><th>Curso</th>`;
-        rows = data.institutions.map((inst, idx) =>
-            `<tr data-index="${idx}" data-type="institution"><td>${inst.name}</td><td>${inst.course}</td></tr>`
-        );
+if (path.length === 0) {
+    pageTitle.textContent = "Instituições e Cursos Cadastrados";
+    addBtn.textContent = "+ Adicionar Instituição";
+    backBtn.classList.add("hidden");
+    csvBtn.classList.add("hidden");
+    exportCsvBtn.classList.add("hidden");
+
+    tableHeader.innerHTML = `<th>Instituição</th><th>Curso</th><th>Duração(Semestres)</th>`;
+    rows = data.institutions.map((inst, idx) =>
+        `<tr data-index="${idx}" data-type="institution">
+            <td>${inst.name}</td>
+            <td>${inst.course}</td>
+            <td>${inst.period || "-"}</td>
+        </tr>`
+    );
+
 
     // ===== Nível 1 - Disciplinas (com código, período e apelido) =====
     } else if (path.length === 1) {
@@ -66,32 +72,44 @@ function renderTable() {
 
     // ===== Nível 2 - Turmas (com apelido, dia, horário e local) =====
     } else if (path.length === 2) {
-        const inst = data.institutions[path[0]];
-        const subj = inst.subjects[path[1]];
-        pageTitle.textContent = `Turmas de ${subj.name}`;
-        addBtn.textContent = "+ Adicionar Turma";
-        csvBtn.classList.add("hidden");
-        backBtn.classList.remove("hidden");
-        exportCsvBtn.classList.add("hidden");
+    const inst = data.institutions[path[0]];
+    const subj = inst.subjects[path[1]];
 
+    pageTitle.textContent = `Turmas de ${subj.name}`;
+    addBtn.textContent = "+ Adicionar Turma";
+    csvBtn.classList.add("hidden");
+    backBtn.classList.remove("hidden");
+    exportCsvBtn.classList.add("hidden");
 
-        tableHeader.innerHTML = `
-            <th>Turma</th>
-            <th>Apelido</th>
-            <th>Dia</th>
-            <th>Horário</th>
-            <th>Local</th>
-        `;
+    tableHeader.innerHTML = `
+        <th>Turma</th>
+        <th>Apelido</th>
+        <th>Horários</th>
+        <th>Local</th>
+    `;
 
-        rows = (subj.classes || []).map((cls, idx) =>
-            `<tr data-index="${idx}" data-type="class">
+    rows = (subj.classes || []).map((cls, idx) => {
+        // Se a turma usa o novo formato (schedule)
+        let horarios = "-";
+        if (cls.schedule && cls.schedule.length) {
+            horarios = cls.schedule
+                .map(s => `${s.day} ${s.start}–${s.end}`)
+                .join(", ");
+        }
+        // Caso ainda tenha o formato antigo (compatibilidade)
+        else if (cls.day && cls.time) {
+            horarios = `${cls.day} ${cls.time}`;
+        }
+
+        return `
+            <tr data-index="${idx}" data-type="class">
                 <td>${cls.number}</td>
                 <td>${cls.nickname || "-"}</td>
-                <td>${cls.day || "-"}</td>
-                <td>${cls.time}</td>
+                <td>${horarios}</td>
                 <td>${cls.location}</td>
-            </tr>`
-        );
+            </tr>
+        `;
+    });
 
     // ===== Nível 3 - Alunos =====
     } else if (path.length === 3) {
@@ -218,7 +236,7 @@ function openModal(title, innerHTML, onSubmit) {
     modalForm.innerHTML = innerHTML;
     modal.classList.remove("hidden");
 
-    // focus first input if exists (small UX nicety)
+    // foco inicial no primeiro input (UX)
     setTimeout(() => {
         const first = modalForm.querySelector("input, textarea, select");
         if (first) first.focus();
@@ -226,11 +244,14 @@ function openModal(title, innerHTML, onSubmit) {
 
     modalForm.onsubmit = (e) => {
         e.preventDefault();
-        onSubmit();
-        modal.classList.add("hidden");
-        renderTable();
+        const success = onSubmit(); // <- agora retorna true ou false
+        if (success !== false) {    // fecha o modal apenas se sucesso
+            modal.classList.add("hidden");
+            renderTable();
+        }
     };
 }
+
 
 closeModal.onclick = () => modal.classList.add("hidden");
 
@@ -256,25 +277,34 @@ backBtn.onclick = () => {
     renderTable();
 };
 
-// ===== Adição de Entidades =====
 addBtn.onclick = () => {
+    // ===== Adicionar Instituição =====
     if (path.length === 0) {
         openModal("Adicionar Instituição e Curso",
             `<input id="inst-name" placeholder="Nome da Instituição" required>
              <input id="inst-course" placeholder="Nome do Curso" required>
+             <input id="inst-period" type="number" min="1" max="12" placeholder="Duração do Curso (1 a 12 semestres)" required>
              <button type="submit">Adicionar</button>`,
             () => {
                 const name = document.getElementById("inst-name").value.trim();
                 const course = document.getElementById("inst-course").value.trim();
-                if (name && course) data.institutions.push({ name, course, subjects: [] });
+                const period = parseInt(document.getElementById("inst-period").value);
+                if (!name || !course || !(period >= 1 && period <= 12)) {
+                    alert("Preencha todos os campos e insira um período válido (1 a 12).");
+                    return false;
+                }
+                data.institutions.push({ name, course, period, subjects: [] });
             });
+    }
 
-    // ===== Adicionar Disciplina (antes: Matéria) =====
-    } else if (path.length === 1) {
+    // ===== Adicionar Disciplina =====
+    else if (path.length === 1) {
+        const inst = data.institutions[path[0]];
+        const maxPeriod = inst.period || 1;
         openModal("Adicionar Disciplina",
             `<input id="subject-name" placeholder="Nome da Disciplina" required>
              <input id="subject-code" placeholder="Código da Disciplina" required>
-             <input id="subject-period" type="number" min="1" max="10" placeholder="Período (1 a 10)" required>
+             <input id="subject-period" type="number" min="1" max="${maxPeriod}" placeholder="Período (1 a ${maxPeriod})" required>
              <input id="subject-nickname" placeholder="Apelido da Disciplina (opcional)">
              <button type="submit">Adicionar</button>`,
             () => {
@@ -283,66 +313,171 @@ addBtn.onclick = () => {
                 const period = parseInt(document.getElementById("subject-period").value);
                 const nickname = document.getElementById("subject-nickname").value.trim() || "-";
 
-                if (name && code && period >= 1 && period <= 10) {
-                    data.institutions[path[0]].subjects.push({
-                        name,
-                        code,
-                        period,
-                        nickname,
-                        classes: []
-                    });
-                } else {
-                    alert("Preencha nome, código e período válido (1-10).");
+                if (!name || !code || !(period >= 1 && period <= maxPeriod)) {
+                    alert(`Preencha nome, código e período válido (1 a ${maxPeriod}).`);
+                    return false;
                 }
-            });
 
-    // ===== Adicionar Turma =====
-    } else if (path.length === 2) {
-        openModal("Adicionar Turma",
-            `<input id="class-number" placeholder="Número da Turma" required>
-             <input id="class-nickname" placeholder="Apelido da Turma (opcional)">
-
-             <div class="week-days">
-                <label><input type="checkbox" value="Segunda"><span>Segunda</span></label>
-                <label><input type="checkbox" value="Terça"><span>Terça</span></label>
-                <label><input type="checkbox" value="Quarta"><span>Quarta</span></label>
-                <label><input type="checkbox" value="Quinta"><span>Quinta</span></label>
-                <label><input type="checkbox" value="Sexta"><span>Sexta</span></label>
-                <label><input type="checkbox" value="Sábado"><span>Sábado</span></label>
-                <label><input type="checkbox" value="Domingo"><span>Domingo</span></label>
-             </div>
-             <br>
-
-             <input id="class-time" placeholder="Horário (ex: 19:00 - 21:30)" required>
-             <input id="class-location" placeholder="Local (ex: Sala 12)" required>
-
-             <button type="submit">Adicionar</button>`,
-            () => {
-                const number = document.getElementById("class-number").value.trim();
-                const nickname = document.getElementById("class-nickname").value.trim() || "-";
-
-                const days = Array.from(document.querySelectorAll(".week-days input:checked"))
-                                  .map(d => d.value);
-
-                const time = document.getElementById("class-time").value.trim();
-                const location = document.getElementById("class-location").value.trim();
-
-                if (number && days.length > 0 && time && location) {
-                    data.institutions[path[0]].subjects[path[1]].classes.push({
-                        number,
-                        nickname,
-                        day: days.join(", "),
-                        time,
-                        location,
-                        students: []
-                    });
-                } else {
-                    alert("Selecione ao menos 1 dia da semana e preencha horário/local.");
+                const existeCodigo = (inst.subjects || []).some(s => s.code.toLowerCase() === code.toLowerCase());
+                if (existeCodigo) {
+                    alert(`Já existe uma disciplina com o código "${code}" neste curso.`);
+                    return false; // ❌ não fecha modal
                 }
+
+                inst.subjects.push({ name, code, period, nickname, classes: [] });
             });
+    }
+
+// ===== Adicionar Turma =====
+else if (path.length === 2) {
+    const subj = data.institutions[path[0]].subjects[path[1]];
+    const inst = data.institutions[path[0]];
+
+    // dias e HTML da grade (4 em cima, 3 embaixo)
+    const diasSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+    const horariosHTML = `
+      <div class="add-class-modal">
+        <div class="modal-week-grid">
+          ${diasSemana.map(dia => `
+            <div class="day-block">
+              <label class="day-toggle">
+                <input type="checkbox" id="check-${dia}" value="${dia}" class="day-check">
+                <span>${dia}</span>
+              </label>
+              <div class="time-inputs">
+                <input type="time" id="start-${dia}" disabled>
+                <span class="time-sep">—</span>
+                <input type="time" id="end-${dia}" disabled>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+
+    openModal("Adicionar Turma",
+        `<div class="add-class-modal-wrapper">
+           <input id="class-number" placeholder="Código/Número da Turma" required>
+           <input id="class-nickname" placeholder="Apelido da Turma (opcional)">
+           ${horariosHTML}
+           <input id="class-location" placeholder="Local (ex: Sala 12)" required>
+           <button type="submit">Adicionar</button>
+         </div>`,
+        () => {
+            const number = document.getElementById("class-number").value.trim();
+            const nickname = document.getElementById("class-nickname").value.trim() || "-";
+            const location = document.getElementById("class-location").value.trim();
+
+            // coletar dias selecionados (onde start/end habilitados)
+            const selectedDays = diasSemana
+                .filter(dia => !document.getElementById(`start-${dia}`).disabled)
+                .map(dia => ({
+                    day: dia,
+                    start: document.getElementById(`start-${dia}`).value,
+                    end: document.getElementById(`end-${dia}`).value
+                }))
+                .filter(d => d.start && d.end);
+
+            if (!number || selectedDays.length === 0 || !location) {
+                alert("Preencha todos os campos e selecione ao menos um dia com horários válidos.");
+                return false;
+            }
+
+            // hora final > hora inicial
+            for (const d of selectedDays) {
+                if (d.end <= d.start) {
+                    alert(`O horário final deve ser maior que o inicial (${d.day}).`);
+                    return false;
+                }
+            }
+
+            // duplicidade número dentro da mesma disciplina
+            const existeTurma = (subj.classes || []).some(c => c.number.toLowerCase() === number.toLowerCase());
+            if (existeTurma) {
+                alert(`Já existe uma turma com o código/número "${number}" nesta disciplina.`);
+                return false;
+            }
+
+            // conflito de horário dentro da MESMA INSTITUIÇÃO (verifica todas as turmas de todos os cursos desta instituição)
+            const conflito = inst.subjects.some(s =>
+                (s.classes || []).some(c =>
+                    (c.schedule || []).some(horarioExistente =>
+                        selectedDays.some(novo =>
+                            horarioExistente.day === novo.day &&
+                            !(novo.end <= horarioExistente.start || novo.start >= horarioExistente.end)
+                        )
+                    )
+                )
+            );
+
+            if (conflito) {
+                alert("⚠️ Conflito de horário detectado: já existe uma turma no mesmo dia e faixa de horário.");
+                return false;
+            }
+
+            // salva com novo formato "schedule" (array de {day, start, end})
+            subj.classes.push({
+                number,
+                nickname,
+                location,
+                schedule: selectedDays,
+                students: []
+            });
+        }
+    );
+
+    // --- depois de abrir o modal: ampliar apenas essa .modal-content e ligar listeners ---
+    setTimeout(() => {
+        // 1) marcar modal-content só para esse modal (usado pelo CSS)
+        const mc = document.querySelector(".modal-content");
+        if (mc) mc.classList.add("add-class-modal-content");
+
+        // 2) ligar checkbox -> habilita inputs de time
+        diasSemana.forEach(dia => {
+            const chk = document.getElementById(`check-${dia}`);
+            const start = document.getElementById(`start-${dia}`);
+            const end = document.getElementById(`end-${dia}`);
+            if (!chk || !start || !end) return;
+            // sincronia: quando checkbox muda, ativa/desativa inputs
+            chk.addEventListener("change", (e) => {
+                const ativo = !!e.target.checked;
+                start.disabled = !ativo;
+                end.disabled = !ativo;
+                if (!ativo) { start.value = ""; end.value = ""; }
+            });
+        });
+    }, 60);
+
+    // remover a classe extra quando fechar pelo X
+    const originalClose = closeModal.onclick;
+    closeModal.onclick = () => {
+        const mc = document.querySelector(".modal-content");
+        if (mc) mc.classList.remove("add-class-modal-content");
+        // mantém comportamento anterior de fechar
+        modal.classList.add("hidden");
+    };
+
+    // também garantir remoção da classe quando o modal for fechado via submit (sucesso)
+    // (openModal fecha o modal; após fechar, removemos a classe)
+    // adiciona observer simples para quando modal for escondido
+    const observer = new MutationObserver((mutations, obs) => {
+        if (modal.classList.contains("hidden")) {
+            const mc = document.querySelector(".modal-content");
+            if (mc) mc.classList.remove("add-class-modal-content");
+            obs.disconnect();
+        }
+    });
+    observer.observe(modal, { attributes: true, attributeFilter: ["class"] });
+}
+
+
+
 
     // ===== Adicionar Aluno =====
-    } else if (path.length === 3) {
+    else if (path.length === 3) {
+        const inst = data.institutions[path[0]];
+        const cls = inst.subjects[path[1]].classes[path[2]];
+
         openModal("Adicionar Aluno",
             `<input id="student-name" placeholder="Nome do Aluno" required>
              <input id="student-ra" placeholder="RA" required>
@@ -350,13 +485,28 @@ addBtn.onclick = () => {
             () => {
                 const name = document.getElementById("student-name").value.trim();
                 const ra = document.getElementById("student-ra").value.trim();
-                if (name && ra) {
-                    const cls = data.institutions[path[0]].subjects[path[1]].classes[path[2]];
-                    cls.students.push({ name, ra, grades: [] });
+
+                if (!name || !ra) {
+                    alert("Preencha o nome e o RA do aluno.");
+                    return false;
                 }
+
+                const raExiste = inst.subjects.some(sub =>
+                    (sub.classes || []).some(c =>
+                        (c.students || []).some(s => s.ra === ra)
+                    )
+                );
+
+                if (raExiste) {
+                    alert(`Já existe um aluno com o RA "${ra}" nesta instituição.`);
+                    return false; // ❌ não fecha o modal
+                }
+
+                cls.students.push({ name, ra, grades: [] });
             });
     }
 };
+
 
 // ===== Média =====
 function escolherTipoMedia(cls) {
