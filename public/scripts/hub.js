@@ -59,22 +59,34 @@ if (path.length === 0) {
         exportCsvBtn.classList.add("hidden");
 
 
-        tableHeader.innerHTML = `<th>Disciplina</th><th>Código</th><th>Período</th><th>Apelido</th>`;
+        tableHeader.innerHTML = `<th class="delete-checkbox"><input type="checkbox" class="master-delete"></th><th>Disciplina</th><th>Código</th><th>Período</th><th>Apelido</th>`;
 
         rows = (inst.subjects || []).map((subj, idx) =>
             `<tr data-index="${idx}" data-type="subject">
+                <td class="delete-checkbox"><input type="checkbox" class="solo-delete"></td>
                 <td>${subj.name}</td>
                 <td>${subj.code}</td>
                 <td>${subj.period}</td>
                 <td>${subj.nickname || "-"}</td>
             </tr>`
         );
-
+        gradingDiv = document.createElement("div");
+        gradingDiv.id = "grading-div";
+        document.getElementById("content").appendChild(gradingDiv);
+    
+        // Só mostra o botão se tiver disciplinas
+        if ((inst.subjects || []).length > 0) {
+            const btnDelete = document.createElement("button");
+            btnDelete.id = "delete-selected";
+            btnDelete.textContent = "- Excluir Disciplinas"; 
+            btnDelete.onclick = () => excluirDisciplina(inst);
+            gradingDiv.appendChild(btnDelete);
+        }
     // ===== Nível 2 - Turmas (com apelido, dia, horário e local) =====
     } else if (path.length === 2) {
     const inst = data.institutions[path[0]];
     const subj = inst.subjects[path[1]];
-
+   
     pageTitle.textContent = `Turmas de ${subj.name}`;
     addBtn.textContent = "+ Adicionar Turma";
     csvBtn.classList.add("hidden");
@@ -82,6 +94,7 @@ if (path.length === 0) {
     exportCsvBtn.classList.add("hidden");
 
     tableHeader.innerHTML = `
+        <th class="delete-checkbox"><input type="checkbox" class="master-delete"></th>
         <th>Turma</th>
         <th>Apelido</th>
         <th>Horários</th>
@@ -100,16 +113,29 @@ if (path.length === 0) {
         else if (cls.day && cls.time) {
             horarios = `${cls.day} ${cls.time}`;
         }
-
+        //tabela turmas
         return `
             <tr data-index="${idx}" data-type="class">
+                <td class="delete-checkbox"><input type="checkbox" class="solo-delete"></td>
                 <td>${cls.number}</td>
                 <td>${cls.nickname || "-"}</td>
                 <td>${horarios}</td>
                 <td>${cls.location}</td>
             </tr>
         `;
-    });
+        });
+    gradingDiv = document.createElement("div");
+    gradingDiv.id = "grading-div";
+    document.getElementById("content").appendChild(gradingDiv);
+
+    // Só mostra o botão se houver turmas para excluir
+    if ((subj.classes || []).length > 0) {
+        const btnDelete = document.createElement("button");
+        btnDelete.id = "delete-selected";
+        btnDelete.textContent = "- Excluir Turmas";
+        btnDelete.onclick = () => excluirTurmas(subj); 
+        gradingDiv.appendChild(btnDelete);
+    }
 
     // ===== Nível 3 - Alunos =====
     } else if (path.length === 3) {
@@ -813,6 +839,47 @@ function excluirAlunos(cls) {
     renderTable();
 }
 
+
+function excluirTurmas(subj) { 
+    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+    if (checkboxesSelected.length === 0) {
+        alert("Por favor, selecione pelo menos uma turma para remover.");
+        return;
+    }
+
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} turma(s)?`)) {
+        return;
+    }
+
+    const indicesParaRemover = [];
+    checkboxesSelected.forEach(cb => {
+        const linha = cb.closest('tr');
+        const index = parseInt(linha.dataset.index);
+        indicesParaRemover.push(index);
+    });
+
+    subj.classes = subj.classes.filter((c, i) => !indicesParaRemover.includes(i));
+    renderTable();
+}
+function excluirDisciplina(inst) { 
+    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+
+    if (checkboxesSelected.length === 0) {
+        alert("Por favor, selecione pelo menos uma disciplina para remover.");
+        return;
+    }
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} disciplina(s)?`)) {
+        return;
+    }
+    const indicesParaRemover = [];
+    checkboxesSelected.forEach(cb => {
+        const linha = cb.closest('tr');
+        const index = parseInt(linha.dataset.index);
+        indicesParaRemover.push(index);
+    });
+    inst.subjects = inst.subjects.filter((s, i) => !indicesParaRemover.includes(i));    
+    renderTable();
+}
 
 // ===== Inicialização =====
 renderTable();
