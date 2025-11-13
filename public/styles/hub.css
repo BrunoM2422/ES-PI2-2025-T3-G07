@@ -274,6 +274,21 @@
     display: block;
     transition: all 0.25s ease-in-out; /*Modifica a transição*/
 }
+#delete-selected{
+        /*Modifica cores e tamanhos*/
+        background: linear-gradient(135deg, #cc4b00, #ff5e00);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 3px 8px rgba(0, 119, 204, 0.25);
+        margin: 8px auto;
+        display: block;
+        transition: all 0.25s ease-in-out; /*Modifica a transição*/
+}
 
 #add-average:hover, #add-comp:hover, .btn-primary:hover {
     /*Modifica a translação e cores*/
@@ -478,4 +493,16 @@ textarea::placeholder {
   .add-class-modal .modal-week-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/*Modificar a checkbox*/
+.master-delete, .solo-delete{
+    margin: 0;
+    vertical-align: middle;
+}
+
+.delete-checkbox{
+    padding: 0 5px;
+    width: 1%; /*Para deixar a o mais apretado possível*/
+    text-align: center;
 }

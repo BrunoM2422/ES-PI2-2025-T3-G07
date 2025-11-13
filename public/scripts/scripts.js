@@ -1,6 +1,5 @@
 //Author: Matheus Antony Lucas Lima
-//Start date: 05/10/2025
-// ====== seu código original até a função performAccountCreation ======
+
 
 function performAccountCreation(accountData) {
     setSubmitButtonState('loading', 'Criando conta...');

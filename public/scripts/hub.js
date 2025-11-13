@@ -9,7 +9,7 @@
 const addBtn = document.getElementById("add-button");
 const backBtn = document.getElementById("back-button");
 const csvBtn = document.getElementById("csv-button");
-const exportCsvBtn = document.getElementById("export-csv-button")
+const exportCsvBtn = document.getElementById("export-csv-button");
 const tableBody = document.getElementById("table-body");
 const tableHeader = document.getElementById("table-header");
 const pageTitle = document.getElementById("page-title");
@@ -123,7 +123,7 @@ if (path.length === 0) {
         csvBtn.onclick = importCSV;
         exportCsvBtn.onclick = exportCSV;
 
-        tableHeader.innerHTML = `<th>Nome</th><th>RA</th>`;
+        tableHeader.innerHTML = `<th class="delete-checkbox"><input type="checkbox" class="master-delete"></th><th>Nome</th><th>RA</th>`;
         if (cls.grading && cls.grading.components.length) {
             cls.grading.components.forEach((c, i) => {
                 // usa apelido (nickname) na coluna
@@ -133,7 +133,7 @@ if (path.length === 0) {
         }
 
         rows = (cls.students || []).map((stu, idx) => {
-            let row = `<tr><td>${stu.name}</td><td>${stu.ra}</td>`;
+            let row = `<tr><td class="delete-checkbox"><input type="checkbox" class="solo-delete"></td><td>${stu.name}</td><td>${stu.ra}</td>`;
             if (!stu.grades) stu.grades = [];
             if (cls.grading && cls.grading.components.length) {
                 cls.grading.components.forEach((c, i) => {
@@ -152,10 +152,17 @@ if (path.length === 0) {
 
         if ((cls.students || []).length && !cls.grading) {
             const btn = document.createElement("button");
+            const btnDelete = document.createElement("button");
+
             btn.id = "add-average";
             btn.textContent = "+ Adicionar Média";
             btn.onclick = () => escolherTipoMedia(cls);
             gradingDiv.appendChild(btn);
+
+            btnDelete.id = "delete-selected";
+            btnDelete.textContent = "- Excluir Alunos";
+            btnDelete.onclick = () => excluirAlunos(cls);
+            gradingDiv.appendChild(btnDelete);
         } else if (cls.grading) {
             const mediaInfo = document.createElement("h3");
             mediaInfo.textContent = `Tipo de Média: ${cls.grading.type}`;
@@ -257,19 +264,48 @@ closeModal.onclick = () => modal.classList.add("hidden");
 
 // ===== Navegação =====
 tableBody.addEventListener("click", (e) => {
-    // Evita navegação se clicou em célula editável
-    if (e.target.classList.contains("grade-cell") || e.target.isContentEditable) {
+    const elementoClicado = e.target;
+    if (elementoClicado.classList.contains('solo-delete')) {
+        const masterCheckbox = tableHeader.querySelector('.master-delete');
+        if (masterCheckbox) { 
+            if (elementoClicado.checked === false) {
+                masterCheckbox.checked = false;
+            } else {
+                const todosCheckboxes = tableBody.querySelectorAll('.solo-delete');
+                const todosMarcados = Array.from(todosCheckboxes).every(cb => cb.checked);
+                masterCheckbox.checked = todosMarcados;
+            }
+        }
+        return; 
+    }
+
+    if (elementoClicado.classList.contains("grade-cell") || elementoClicado.isContentEditable) {
         e.stopPropagation();
         return;
     }
-    const row = e.target.closest("tr");
-    if (!row) return;
+
+    const row = elementoClicado.closest("tr");
+    if (!row) return; 
+    if (!row.dataset.type) return; 
+
     const idx = parseInt(row.dataset.index);
     const type = row.dataset.type;
     if (type === "institution") path = [idx];
     else if (type === "subject") path = [path[0], idx];
     else if (type === "class") path = [path[0], path[1], idx];
     renderTable();
+});
+
+tableHeader.addEventListener("click", (e) => {
+    const elementoClicado = e.target;
+
+if (elementoClicado.classList.contains('master-delete')) {
+const allCheckboxes = tableBody.querySelectorAll('.solo-delete');        
+const isMarked = elementoClicado.checked;
+allCheckboxes.forEach(checkbox => {
+checkbox.checked = isMarked;
+        });
+    }
 });
 
 backBtn.onclick = () => {
@@ -301,6 +337,7 @@ addBtn.onclick = () => {
     else if (path.length === 1) {
         const inst = data.institutions[path[0]];
         const maxPeriod = inst.period || 1;
+       
         openModal("Adicionar Disciplina",
             `<input id="subject-name" placeholder="Nome da Disciplina" required>
              <input id="subject-code" placeholder="Código da Disciplina" required>
@@ -722,7 +759,7 @@ function exportCSV(){
     row.push(stu.ra);
 
     if (cls.grading && cls.grading.components.length){
-        cls.granding.components.forEach((comp, index) => {
+        cls.grading.components.forEach((comp, index) => {
             const grade = stu.grades[index] !== undefined ? stu.grades[index] : 0;
                 row.push(grade.toString().replace('.',','));
                     });
@@ -749,6 +786,31 @@ function exportCSV(){
         document.body.removeChild(link);
         URL.revokeObjectURL(url); // Libera a memória
         
+}
+
+function excluirAlunos(cls) {
+    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked'); // <- Sua variável chama "Selected"
+
+    if (checkboxesSelected.length === 0) {
+        alert("Selecione pelo menos um aluno para remover.");
+        return;
+    }
+
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} aluno(s)?`)) {
+        return;
+    }
+    const rasParaRemover = [];
+    
+    checkboxesSelected.forEach(cb => {
+        const linha = cb.closest('tr');
+        const raCell = linha.cells[2]; // Pega a 3ª célula (índice 2)
+        if (raCell) {
+            rasParaRemover.push(raCell.textContent);
+        }
+    });
+    cls.students = cls.students.filter(stu => !rasParaRemover.includes(stu.ra));
+
+    renderTable();
 }
 
 
