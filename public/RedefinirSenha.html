@@ -1,41 +1,55 @@
 <!DOCTYPE html>
 <!--
-    Autores:
-        Nicolas Mitjans Nunes
+  Autores:
+    Nicolas Mitjans Nunes
 -->
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redefinir Senha - NotaDez</title>
-  <link rel="stylesheet" href="./styles/main.css">
-  <link rel="stylesheet" href="./styles/redefinir_senha.css">
-</head>
-<body>
-  <div id="wrapper">
-    <div id="header">
-      <a href="index.html"><img src="./images/notadezlogo2.png" alt="logo" class="header-logo"></a>
-      <nav>
-        <ul>
-          <li><a href="index.html">Log In</a></li>
-          <li><a href="criarConta.html">Sign Up</a></li>
-        </ul>
-      </nav>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redefinir Senha - NotaDez</title>
+    <link rel="stylesheet" href="./styles/main.css" />
+    <link rel="stylesheet" href="./styles/redefinir_senha.css" />
+  </head>
+
+  <body>
+    <div id="wrapper">
+      
+      <header id="header">
+        <a href="index.html">
+          <img src="./images/notadezlogo2.png" alt="Logo NotaDez" class="header-logo" />
+        </a>
+        <nav>
+          <ul>
+            <li><a href="index.html">Log In</a></li>
+            <li><a href="criarConta.html">Sign Up</a></li>
+          </ul>
+        </nav>
+      </header>
+
+      
+      <main id="content">
+        <h1>Redefinir Senha</h1>
+        <form id="reset-form">
+          <input type="password" id="newPassword" placeholder="Nova senha" required />
+          <input type="password" id="confirmPassword" placeholder="Confirmar senha" required />
+          <button type="submit">Confirmar</button>
+        </form>
+        <div id="message"></div>
+      </main>
+
+      
+      <footer id="footer">
+        <div class="footer-content">
+          <ul class="footer-links">
+            <li><a href="sobre.html">Sobre</a></li>
+            <li><a href="contato.html">Contato</a></li>
+          </ul>
+          <p>&copy; 2025 NotaDez. Todos os direitos reservados.</p>
+        </div>
+      </footer>
     </div>
 
-    <div id="content">
-      <p>Redefinir Senha</p>
-      <form id="reset-form">
-        <input type="password" id="newPassword" placeholder="Nova senha" required>
-        <input type="password" id="confirmPassword" placeholder="Confirmar senha" required>
-        <button type="submit">Confirmar</button>
-      </form>
-      <div id="message"></div>
-    </div>
-
-    <div id="footer">
-      <div class="footer-content">
-        <ul class="footer-links">
-          <li><a href="sobre.html">Sobre</a></li>
-          <li><a href="contato.html">Contato</a></li>
-          <li>
+    <script src="./scripts/redefinir_senha.js"></script>
+  </body>
+</html>

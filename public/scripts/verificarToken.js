@@ -1,4 +1,3 @@
-
 /* Autores: 
             Nicolas Mitjans Nunes
             Pedro Henrique Ribeiro Silva Murta
@@ -23,27 +22,29 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!token) return showMessage("Informe o token.", "error");
 
     try {
-      const res = await fetch("http://localhost:3000/verificar-token", {
+      console.log("🔍 Enviando token para verificação...");
+      const res = await fetch("http://localhost:3000/api/verify-token", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, token })
       });
+
       const data = await res.json();
+      console.log("📦 Resposta do servidor:", data);
 
       if (!res.ok || !data.ok) {
         showMessage(data.error || "Token inválido ou expirado.", "error");
         return;
       }
 
-      // guarda o token para a próxima página
       sessionStorage.setItem("recoveryToken", token);
       showMessage("Token validado!", "success");
 
       setTimeout(() => {
-        window.location.href = "redefinir_senha.html";
+        window.location.href = "RedefinirSenha.html";
       }, 1000);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Erro no fetch:", err);
       showMessage("Erro no servidor.", "error");
     }
   });

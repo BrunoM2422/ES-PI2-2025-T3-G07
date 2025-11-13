@@ -38,6 +38,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Public path
 app.use(express.static(PUBLIC_DIR));
+app.use(express.static(path.join(__dirname, "../public")));
 app.use("/htmls", express.static(path.join(PUBLIC_DIR, "htmls")));
 app.use("/styles", express.static(path.join(PUBLIC_DIR, "styles")));
 app.use("/images", express.static(path.join(PUBLIC_DIR, "images")));
@@ -602,29 +603,37 @@ app.post("/api/request-password-reset", async (req: Request, res: Response) => {
   let connection;
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ ok: false, error: "Email é obrigatório." });
+    if (!email)
+      return res.status(400).json({ ok: false, error: "Email é obrigatório." });
 
     connection = await getConnection();
 
-    const result = await connection.execute("SELECT * FROM usuario WHERE email = :email", [email]);
+    // Verifica se o usuário existe
+    const result = await connection.execute(
+      "SELECT * FROM usuario WHERE email = :email",
+      [email]
+    );
     const user = result.rows?.[0] as any;
-    if (!user) return res.status(404).json({ ok: false, error: "Usuário não encontrado." });
+    if (!user)
+      return res.status(404).json({ ok: false, error: "Usuário não encontrado." });
 
+    //  Gera token e define expiração
     const token = generateToken();
     const expireDate = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
     const expireStr = formatTimestampForOracle(expireDate);
 
-    // Atualiza o usuário com token e expiração
+    //  Atualiza o usuário com token e expiração
     await connection.execute(
       `UPDATE usuario
-       SET token_recuperacao = :token,
-           expira_em = TO_TIMESTAMP(:expira, 'YYYY-MM-DD HH24:MI:SS')
+         SET token_recuperacao = :token,
+             expira_em = TO_TIMESTAMP(:expira, 'YYYY-MM-DD HH24:MI:SS')
        WHERE email = :email`,
       { token, expira: expireStr, email },
       { autoCommit: true }
     );
 
-    // Envia email com o token
+    
+    
     const mailOptions = {
       from: process.env.FROM_EMAIL,
       to: email,
@@ -636,9 +645,10 @@ app.post("/api/request-password-reset", async (req: Request, res: Response) => {
     };
 
     await enviarEmailRecuperacao(email, token);
+    
 
-
-    res.json({ ok: true, message: "Token enviado para o email (se existir)." });
+    //  Resposta ao cliente
+    res.json({ ok: true, message: "Token gerado com sucesso (email não enviado)." });
   } catch (err) {
     console.error("❌ Erro ao solicitar reset:", err);
     res.status(500).json({ ok: false, error: "Erro no servidor." });
@@ -646,6 +656,7 @@ app.post("/api/request-password-reset", async (req: Request, res: Response) => {
     if (connection) await connection.close();
   }
 });
+
 
 // =====================
 // Verificar token
