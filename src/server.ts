@@ -246,7 +246,30 @@ async function initializeDatabase() {
       END;
     `);
 
-    console.log("✅ Tabelas verificadas/criadas com sucesso.");
+    // ==========================================
+    // TRIGGER PARA AUDITORIA DE TURMA
+    // ==========================================
+    await connection.execute(`
+      BEGIN
+        EXECUTE IMMEDIATE '
+          CREATE OR REPLACE TRIGGER audit_turma_changes
+          AFTER INSERT OR UPDATE OR DELETE ON turma
+          FOR EACH ROW
+          BEGIN
+            IF INSERTING THEN
+              INSERT INTO auditoria (data, hora, id_turma) VALUES (SYSDATE, SYSTIMESTAMP, :NEW.id_turma);
+            ELSIF UPDATING THEN
+              INSERT INTO auditoria (data, hora, id_turma) VALUES (SYSDATE, SYSTIMESTAMP, :NEW.id_turma);
+            ELSIF DELETING THEN
+              INSERT INTO auditoria (data, hora, id_turma) VALUES (SYSDATE, SYSTIMESTAMP, :OLD.id_turma);
+            END IF;
+          END;
+        ';
+      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -20000 THEN RAISE; END IF;
+      END;
+    `);
+
+    console.log("✅ Tabelas e trigger verificados/criados com sucesso.");
 
     // ==========================================
     // Adicionar colunas de recuperação de senha
