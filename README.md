@@ -52,7 +52,8 @@ cd ES-PI2-2025-T3-G07
 
 ```bash
 npm install
-npm install nodemailer dotenv
+npm install nodemailer 
+npm install dotenv
 ```
 
 3. Compile o TypeScript
