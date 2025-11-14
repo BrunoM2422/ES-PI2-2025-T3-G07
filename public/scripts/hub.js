@@ -31,6 +31,21 @@ let data = { institutions: [] };
 // path = [i,j,k,l] -> nível 4 (alunos da turma l)
 let path = [];
 
+// ===== Verificação de Autenticação =====
+function verificarAutenticacao() {
+    const usuario = JSON.parse(localStorage.getItem("currentUser"));
+    
+    if (!usuario || !usuario.id_usuario) {
+        console.warn("⚠️ Usuário não autenticado, redirecionando...");
+        alert("Sessão expirada. Por favor, faça login novamente.");
+        window.location.href = "index.html";
+        return false;
+    }
+    
+    console.log("✅ Usuário autenticado:", usuario.nome);
+    return true;
+}
+
 // ==================================================
 // renderTable — render principal adaptado para 5 níveis
 // ==================================================
@@ -376,14 +391,27 @@ addBtn.onclick = () => {
         openModal("Adicionar Instituição",
             `<input id="inst-name" placeholder="Nome da Instituição" required>
              <button type="submit">Adicionar</button>`,
-            () => {
+            async () => {
                 const name = document.getElementById("inst-name").value.trim();
                 if (!name) {
                     alert("Digite o nome da instituição.");
                     return false;
                 }
-                // adiciona com array de courses vazio
-                data.institutions.push({ name, courses: [] });
+                
+                try {
+                    // Salva instituição no banco
+                    const idInstituicao = await salvarInstituicaoNoBanco(name);
+                    if (!idInstituicao) return false;
+                    
+                    await carregarInstituicoesECursos();
+                    
+                    alert("Instituição adicionada com sucesso!");
+                    return true;
+                } catch (error) {
+                    console.error("Erro ao salvar:", error);
+                    alert("Erro ao salvar instituição.");
+                    return false;
+                }
             });
     }
 
@@ -394,14 +422,28 @@ addBtn.onclick = () => {
             `<input id="course-name" placeholder="Nome do Curso" required>
              <input id="course-period" type="number" min="1" max="12" placeholder="Duração do Curso (1 a 12 semestres)" required>
              <button type="submit">Adicionar</button>`,
-            () => {
+            async () => {
                 const name = document.getElementById("course-name").value.trim();
                 const period = parseInt(document.getElementById("course-period").value);
                 if (!name || !(period >= 1 && period <= 12)) {
                     alert("Preencha o nome e um período válido (1 a 12).");
                     return false;
                 }
-                inst.courses.push({ name, period, subjects: [] });
+                
+                try {
+                    // Salva curso no banco vinculado à instituição
+                    const okCurso = await salvarCursoNoBanco(name, period, inst.id_instituicao);
+                    if (!okCurso) return false;
+                    
+                    await carregarInstituicoesECursos();
+                    
+                    alert("Curso adicionado com sucesso!");
+                    return true;
+                } catch (error) {
+                    console.error("Erro ao salvar:", error);
+                    alert("Erro ao salvar curso.");
+                    return false;
+                }
             });
     }
 
@@ -940,7 +982,173 @@ function excluirDisciplina(course) {
     renderTable();
 }
 
+// ===== Integração com o servidor =====
+
+// 1 Salvar Instituição
+async function salvarInstituicaoNoBanco(nomeInstituicao) {
+    try {
+        const usuario = JSON.parse(localStorage.getItem("currentUser"));
+        if (!usuario || !usuario.id_usuario) {
+            alert("Usuário não autenticado.");
+            return null;
+        }
+
+        console.log("Salvando instituição:", nomeInstituicao);
+        
+        const response = await fetch("/api/institutions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                id_usuario: usuario.id_usuario,
+                name: nomeInstituicao
+            })
+        });
+
+        const result = await response.json();
+        console.log("Resposta do servidor:", result);
+        
+        if (!response.ok || !result.ok) {
+            console.error("Erro ao salvar instituição:", result.error);
+            alert("Erro ao salvar instituição: " + (result.error || "Erro desconhecido"));
+            return null;
+        }
+
+        console.log("✅ Instituição salva:", result);
+        return result.instituicaoId;
+    } catch (err) {
+        console.error("❌ Erro inesperado ao salvar instituição:", err);
+        alert("Erro inesperado ao salvar instituição.");
+        return null;
+    }
+}
+
+// 2 Salvar Curso vinculado à Instituição
+async function salvarCursoNoBanco(nomeCurso, periodo, idInstituicao) {
+    try {
+        const response = await fetch("/api/courses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: nomeCurso,
+                period: periodo,
+                id_instituicao: idInstituicao
+            })
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+            console.error("Erro ao salvar curso:", result.error);
+            alert("Erro ao salvar curso no banco.");
+            return false;
+        }
+
+        console.log("✅ Curso salvo:", result);
+        return true;
+    } catch (err) {
+        console.error("Erro inesperado ao salvar curso:", err);
+        alert("Erro inesperado ao salvar curso.");
+        return false;
+    }
+}
+
+async function carregarInstituicoesECursos() {
+    try {
+        // Faz autenticação primeiro
+        if (!verificarAutenticacao()) return;
+
+        const usuario = JSON.parse(localStorage.getItem("currentUser"));
+        
+        console.log("Carregando instituições para usuário:", usuario.id_usuario);
+        
+        const response = await fetch(`/api/institutions?id_usuario=${usuario.id_usuario}`);
+        
+        if (!response.ok) {
+            console.error("Erro ao buscar instituições:", response.statusText);
+            alert("Erro ao carregar instituições.");
+            return;
+        }
+        
+        const result = await response.json();
+        console.log("Resposta da API:", result);
+
+        if (!result.ok) {
+            console.error("Erro na resposta:", result.error);
+            return;
+        }
+
+        if (Array.isArray(result.institutions)) {
+            
+            data.institutions = result.institutions.map(inst => ({
+                id_instituicao: inst.ID_INSTITUICAO, 
+                name: inst.NOME,
+                courses: []
+            }));
+            
+            console.log("Instituições carregadas:", data.institutions);
+            
+            // Carrega cursos para cada instituição
+            await carregarCursosParaInstituicoes();
+        } else {
+            data.institutions = [];
+            console.log("Nenhuma instituição encontrada");
+        }
+
+        renderTable();
+
+    } catch (err) {
+        console.error("❌ Erro ao carregar instituições:", err);
+        alert("Erro ao carregar dados. Verifique sua conexão.");
+    }
+}
+
+async function carregarCursosParaInstituicoes() {
+    try {
+        for (let inst of data.institutions) {
+            // Verifica se a instituição tem ID válido
+            if (!inst.id_instituicao) {
+                console.warn("Instituição sem ID:", inst);
+                continue;
+            }
+
+            try {
+                const response = await fetch(`/api/courses?id_instituicao=${inst.id_instituicao}`);
+                
+                if (!response.ok) {
+                    console.error(`Erro ao buscar cursos para instituição ${inst.id_instituicao}:`, response.statusText);
+                    continue;
+                }
+                
+                const result = await response.json();
+                
+                if (result.ok && result.courses && result.courses.length > 0) {
+                    // Mapeia os cursos para a estrutura interna
+                    inst.courses = result.courses.map(curso => ({
+                        id_curso: curso.ID_CURSO,
+                        name: curso.NOME,
+                        period: curso.PERIODO_CURSO,
+                        subjects: []
+                    }));
+                    console.log(`✅ Cursos carregados para instituição ${inst.id_instituicao}:`, inst.courses.length);
+                } else {
+                    console.log(`Nenhum curso encontrado para instituição ${inst.id_instituicao}`);
+                    inst.courses = [];
+                }
+            } catch (err) {
+                console.error(`❌ Erro ao carregar cursos para instituição ${inst.id_instituicao}:`, err);
+                inst.courses = [];
+            }
+        }
+    } catch (err) {
+        console.error("Erro geral ao carregar cursos:", err);
+    }
+}
+
 // =======================
 // Inicialização
 // =======================
-renderTable();
+document.addEventListener('DOMContentLoaded', function() {
+    if (!verificarAutenticacao()) {
+        return;
+    }
+    carregarInstituicoesECursos();
+});
