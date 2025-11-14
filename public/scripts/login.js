@@ -80,10 +80,6 @@ document.addEventListener('DOMContentLoaded', function() {
             showFieldError(passwordInput, 'Senha é obrigatória');
             return false;
         }
-        if (password.length < 6) {
-            showFieldError(passwordInput, 'A senha deve ter pelo menos 6 caracteres');
-            return false;
-        }
         clearFieldError(passwordInput);
         return true;
     }

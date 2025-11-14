@@ -191,7 +191,12 @@ function renderTable() {
         tableHeader.innerHTML = `<th class="delete-checkbox"><input type="checkbox" class="master-delete"></th><th>Nome</th><th>RA</th>`;
         if (cls.grading && cls.grading.components.length) {
             cls.grading.components.forEach((c, i) => {
-                tableHeader.innerHTML += `<th class="component-header" data-index="${i}" title="Clique para editar/remover">${c.nickname}${cls.grading.type === "Ponderada" ? ` (${c.weight})` : ""}</th>`;
+                tableHeader.innerHTML += `
+    <th class="component-header" data-index="${i}">
+        <input type="checkbox" class="edit-toggle" data-comp="${i}">
+        ${c.nickname}${cls.grading.type === "Ponderada" ? ` (${c.weight})` : ""}
+    </th>`;
+
             });
             tableHeader.innerHTML += `<th>Média</th>`;
         }
@@ -202,7 +207,8 @@ function renderTable() {
             if (cls.grading && cls.grading.components.length) {
                 cls.grading.components.forEach((c, i) => {
                     if (stu.grades[i] === undefined) stu.grades[i] = 0;
-                    row += `<td contenteditable="true" data-comp="${i}" class="grade-cell">${stu.grades[i]}</td>`;
+                    row += `<td contenteditable="false" data-comp="${i}" class="grade-cell">${stu.grades[i]}</td>
+`;
                 });
                 row += `<td>${stu.media !== undefined ? stu.media.toFixed(2) : "-"}</td>`;
             }
@@ -298,6 +304,43 @@ function renderTable() {
             editarOuRemoverComponente(cls, compIndex);
         });
     });
+
+    // --- Gerenciar checkboxes de edição de componentes ---
+const toggles = document.querySelectorAll(".edit-toggle");
+const allCells = document.querySelectorAll(".grade-cell");
+
+// Função helper: desabilita tudo
+function disableAllGradeCells() {
+    allCells.forEach(td => td.setAttribute("contenteditable", "false"));
+}
+
+disableAllGradeCells();
+
+toggles.forEach(toggle => {
+
+    // Impede que o clique abra o modal
+    toggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+    });
+
+    toggle.addEventListener("change", () => {
+        // Se marcou um, desmarca todos os outros
+        if (toggle.checked) {
+            toggles.forEach(t => {
+                if (t !== toggle) t.checked = false;
+            });
+
+            const compIndex = toggle.dataset.comp;
+            disableAllGradeCells();
+            wrapper.querySelectorAll(`td.grade-cell[data-comp="${compIndex}"]`)
+                .forEach(td => td.setAttribute("contenteditable", "true"));
+        } else {
+            disableAllGradeCells();
+        }
+    });
+});
+
+
 }
 
 // =======================
