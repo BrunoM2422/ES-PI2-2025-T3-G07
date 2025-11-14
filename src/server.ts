@@ -115,7 +115,7 @@ async function initializeDatabase() {
         EXECUTE IMMEDIATE '
           CREATE TABLE curso (
             id_curso NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            periodo_curso NUMBER CHECK (periodo_curso BETWEEN 0 AND 10) NOT NULL,
+            periodo_curso NUMBER CHECK (periodo_curso BETWEEN 1 AND 12) NOT NULL,
             nome VARCHAR2(100) NOT NULL,
             id_instituicao NUMBER NOT NULL,
             CONSTRAINT fk_curso_instituicao FOREIGN KEY (id_instituicao) REFERENCES instituicao(id_instituicao) ON DELETE CASCADE
@@ -791,8 +791,8 @@ app.post("/api/courses", async (req: Request, res: Response) => {
     if (!name?.trim() || !period ) {
       return res.status(400).json({ ok: false, error: "Nome e período do curso são obrigatórios." });
     }
-    if (period < 0 || period > 10) {
-    return res.status(400).json({ ok: false, error: "Período deve estar entre 0 e 10." });
+    if (period < 1 || period > 12) {
+    return res.status(400).json({ ok: false, error: "Período deve estar entre 1 e 12." });
     }
 
     if (!id_instituicao) {

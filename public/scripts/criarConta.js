@@ -185,8 +185,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Salva o usuário recém-criado no localStorage
-            localStorage.setItem('lastRegisteredUser', JSON.stringify(result));
+            // Salva o usuário como currentUser (igual ao login)
+            const userData = {
+                id_usuario: result.userId,
+                email: accountData.email,
+                nome: accountData.name,
+                sobrenome: accountData.surname
+            };
+            
+            localStorage.setItem('currentUser', JSON.stringify(userData));
 
             showMessage('Conta criada com sucesso!', 'success');
 
