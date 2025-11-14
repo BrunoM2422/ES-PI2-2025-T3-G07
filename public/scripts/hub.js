@@ -66,12 +66,18 @@ function renderTable() {
         csvBtn.classList.add("hidden");
         exportCsvBtn.classList.add("hidden");
 
-        tableHeader.innerHTML = `<th>Instituição</th>`;
+        tableHeader.innerHTML = `<th colspan="2">Instituição</th>`;
         rows = data.institutions.map((inst, idx) =>
             `<tr data-index="${idx}" data-type="institution">
                 <td>${inst.name}</td>
+                <td class="delete-action">
+                <button type="button" id="delete-inst" data-index="${idx}"">
+                X
+                </button>
+                </td>
             </tr>`
         );
+        
     }
 
     // Nível 1 — Cursos da instituição
@@ -83,13 +89,26 @@ function renderTable() {
         backBtn.classList.remove("hidden");
         exportCsvBtn.classList.add("hidden");
 
-        tableHeader.innerHTML = `<th>Curso</th><th>Duração (Semestres)</th>`;
+        tableHeader.innerHTML = `<th class="delete-checkbox"><input type="checkbox" class="master-delete"></th><th>Curso</th><th>Duração (Semestres)</th>`;
         rows = (inst.courses || []).map((course, idx) =>
-            `<tr data-index="${idx}" data-type="course">
+            `
+                <tr data-index="${idx}" data-type="course">
+                <td class="delete-checkbox"><input type="checkbox" class="solo-delete"></td>
                 <td>${course.name}</td>
                 <td>${course.period || "-"}</td>
             </tr>`
         );
+        gradingDiv = document.createElement("div");
+        gradingDiv.id = "grading-div";
+        document.getElementById("content").appendChild(gradingDiv);
+        const btnDelete = document.createElement("button");
+        btnDelete.id = "delete-selected";
+        btnDelete.textContent = "- Excluir Curso";
+        btnDelete.onclick = () => excluirCurso(inst);
+        gradingDiv.appendChild(btnDelete);
+        if ((inst.subjects || []).length > 0) {
+            ////PRECISA DE ATENÇÃO E MUDANÇAS
+        }
     }
 
     // Nível 2 — Disciplinas (subjects) do curso
@@ -1191,6 +1210,38 @@ async function carregarCursosParaInstituicoes() {
         }
     } catch (err) {
         console.error("Erro geral ao carregar cursos:", err);
+    }
+}
+
+function excluirCurso(inst) { 
+    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+    if (checkboxesSelected.length === 0) {
+        alert("Por favor, selecione pelo menos um curso para remover.");
+        return;
+    }
+
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} curso(s)?`)) {
+        return;
+    }
+
+    const indicesParaRemover = [];
+    checkboxesSelected.forEach(cb => {
+        const linha = cb.closest('tr');
+        const index = parseInt(linha.dataset.index);
+        indicesParaRemover.push(index);
+    });
+
+    inst.courses = inst.courses.filter((c, i) => !indicesParaRemover.includes(i));
+
+    renderTable();
+}
+
+function excluirInstituicaoPeloIndice(index) {
+    const inst = data.institutions[index];
+    if (!inst) return; 
+    if (confirm(`Tem certeza que deseja excluir a instituição "${inst.name}"?`)) {
+        data.institutions.splice(index, 1);
+        renderTable();
     }
 }
 

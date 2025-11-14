@@ -506,3 +506,13 @@ textarea::placeholder {
     width: 1%; /*Para deixar a o mais apretado possível*/
     text-align: center;
 }
+
+#delete-inst{
+    background: none;
+    border: none;
+    color: red;
+}
+
+#delete-inst :hover{
+    cursor: pointer;
+}
