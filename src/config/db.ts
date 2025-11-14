@@ -8,9 +8,9 @@ import oracledb from "oracledb";
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
 const dbConfig = {
-  user: 'SYSTEM',                    // Substitua pelo seu usuário do Oracle
-  password: 'Pedro@05',                              // Substitua pela sua senha do Oracle
-  connectString:'localhost:1521/XE', 
+  user: 'BANCO_DE_DADOS_1',                    // Substitua pelo seu usuário do Oracle
+  password: '1234',                              // Substitua pela sua senha do Oracle
+  connectString:'localhost:1521/XEPDB1', 
 };
 
 export async function initOraclePool() {
