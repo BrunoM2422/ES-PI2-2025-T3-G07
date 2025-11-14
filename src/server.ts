@@ -125,13 +125,13 @@ async function initializeDatabase() {
     `);
 
     // ==========================================
-    // 4. DISCIPLINA (SEM IDENTITY - ID MANUAL)
+    // 4. DISCIPLINA
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE disciplina (
-            id_disciplina NUMBER NOT NULL PRIMARY KEY,
+            id_disciplina NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
             codigo VARCHAR2(50) NOT NULL UNIQUE,
             periodo NUMBER,
@@ -159,14 +159,14 @@ async function initializeDatabase() {
     `);
 
     // ==========================================
-    // 6. TURMA (SEM IDENTITY - ID MANUAL)
+    // 6. TURMA
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE turma (
-            id_turma NUMBER NOT NULL PRIMARY KEY,
-            nome VARCHAR2(100) NOT NULL,
+            id_turma NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            numero VARCHAR2(100) NOT NULL,
             horario TIMESTAMP NOT NULL,
             dia DATE NOT NULL,
             local VARCHAR2(100) NOT NULL,
@@ -187,6 +187,7 @@ async function initializeDatabase() {
           CREATE TABLE estudante (
             id_estudante NUMBER NOT NULL PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
+            ra VARCHAR2(50),
             id_turma NUMBER NOT NULL,
             CONSTRAINT fk_estudante_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
           )';
@@ -491,6 +492,42 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
   } catch (err) {
     console.error("❌ Erro ao buscar instituições:", err);
     res.status(500).json({ ok: false, error: 'Erro ao buscar instituições' });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Deletar instituição
+app.delete('/api/institutions/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    const { id_usuario } = req.body; // Assume id_usuario is sent in body for authorization
+
+    if (!id_usuario) {
+      return res.status(400).json({ ok: false, error: "Usuário não autenticado." });
+    }
+
+    connection = await getConnection();
+
+    // Check if institution belongs to user
+    const check = await connection.execute(
+      "SELECT COUNT(*) AS count FROM instituicao WHERE id_instituicao = :id AND id_usuario = :id_usuario",
+      [id, id_usuario]
+    );
+    const count = (check.rows?.[0] as any).COUNT;
+    if (count === 0) {
+      return res.status(404).json({ ok: false, error: "Instituição não encontrada ou não pertence ao usuário." });
+    }
+
+    // Delete (CASCADE will handle related records)
+    await connection.execute("DELETE FROM instituicao WHERE id_instituicao = :id", [id]);
+    await connection.commit();
+
+    res.json({ ok: true, message: "Instituição deletada com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar instituição:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar instituição." });
   } finally {
     if (connection) await connection.close();
   }
@@ -868,17 +905,53 @@ app.get("/api/courses", async (req: Request, res: Response) => {
       query += ' AND c.periodo_curso = :periodo_curso';
       params.push(period);
     }
-    
+
     query += ' ORDER BY c.nome, c.periodo_curso';
 
     const result = await connection.execute(query, params);
     const courses = result.rows || [];
-    
-    
+
+
     res.json({ ok: true, courses, count: courses.length });
   } catch (err) {
     console.error("❌ Erro ao buscar cursos:", err);
     res.status(500).json({ ok: false, error: "Erro interno ao buscar cursos." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Deletar curso
+app.delete('/api/courses/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    const { id_usuario } = req.body;
+
+    if (!id_usuario) {
+      return res.status(400).json({ ok: false, error: "Usuário não autenticado." });
+    }
+
+    connection = await getConnection();
+
+    // Check if course belongs to user's institution
+    const check = await connection.execute(
+      "SELECT COUNT(*) AS count FROM curso c INNER JOIN instituicao i ON c.id_instituicao = i.id_instituicao WHERE c.id_curso = :id AND i.id_usuario = :id_usuario",
+      [id, id_usuario]
+    );
+    const count = (check.rows?.[0] as any).COUNT;
+    if (count === 0) {
+      return res.status(404).json({ ok: false, error: "Curso não encontrado ou não pertence ao usuário." });
+    }
+
+    // Delete (CASCADE will handle related records)
+    await connection.execute("DELETE FROM curso WHERE id_curso = :id", [id]);
+    await connection.commit();
+
+    res.json({ ok: true, message: "Curso deletado com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar curso:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar curso." });
   } finally {
     if (connection) await connection.close();
   }
