@@ -610,7 +610,7 @@ addBtn.onclick = () => {
                <input id="class-location" placeholder="Local (ex: Sala 12)" required>
                <button type="submit">Adicionar</button>
              </div>`,
-            () => {
+            async () => {
                 const number = document.getElementById("class-number").value.trim();
                 const nickname = document.getElementById("class-nickname").value.trim() || "-";
                 const location = document.getElementById("class-location").value.trim();
@@ -635,8 +635,9 @@ addBtn.onclick = () => {
                         return false;
                     }
                 }
-
-                const existeTurma = (subj.classes || []).some(c => c.number && c.number.toLowerCase() === number.toLowerCase());
+                
+                const subjects = subj.subjects || [];
+                const existeTurma = subjects.some(subject => subject.number && subject.number.toLowerCase() === number.toLowerCase());
                 if (existeTurma) {
                     alert(`Já existe uma turma com o código/número "${number}" nesta disciplina.`);
                     return false;
@@ -661,13 +662,26 @@ addBtn.onclick = () => {
                     return false;
                 }
 
-                subj.classes.push({
-                    number,
-                    nickname,
-                    location,
-                    schedule: selectedDays,
-                    students: []
-                });
+                try {
+                    const turmaSalva = await salvarTurmaNoBanco(
+                        number,  
+                        nickname || "-",
+                        location,
+                        selectedDays, 
+                        subj.id_disciplina
+                    );
+                    
+                    if (turmaSalva) {
+                        await carregarInstituicoesECursos();
+                        alert("Turma adicionada com sucesso!");
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error("Erro ao salvar:", error);
+                    alert("Erro ao salvar turma.");
+                    return false;
+                }
             }
         );
 
@@ -1221,6 +1235,89 @@ async function salvarDisciplinaNoBanco(nomeDisciplina, codigo, periodo, apelido,
     }
 }
 
+// 4. Salva a Turma vinculada à Disciplina
+async function salvarTurmaNoBanco(number, nickname, location, schedule, idDisciplina) {
+    try {
+        console.log("Enviando turma para o servidor:", { number, nickname, location, schedule, idDisciplina });
+
+        const response = await fetch("/api/classes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                number: number,
+                nickname: nickname || "-",
+                schedule: schedule,
+                location: location,
+                id_disciplina: idDisciplina
+            })
+        });
+        
+        const result = await response.json();
+        console.log("Resposta da API:", result);
+        
+        if (!response.ok || !result.ok) {
+            console.error("Erro ao salvar turma:", result.error);
+            alert("Erro ao salvar turma: " + (result.error || "Erro desconhecido"));
+            return false;
+        }
+        
+        console.log("✅ Turma salva:", result);
+        return true;
+    } catch (err) {
+        console.error("Erro inesperado ao salvar turma:", err);
+        alert("Erro de conexão ao salvar turma.");
+        return false;
+    }
+}
+
+
+// Função para carregar turmas
+async function carregarTurmasParaDisciplinas() {
+    try {
+        console.log("🔄 Carregando turmas para todas as disciplinas...");
+        for (let inst of data.institutions) {
+            for (let course of inst.courses) {
+                for (let subject of course.subjects) {
+                    if (!subject.id_disciplina) {
+                        console.warn("Disciplina sem ID:", subject);
+                        continue;
+                    }
+                    try {
+                        const response = await fetch(`/api/classes?id_disciplina=${subject.id_disciplina}`);
+                        if (!response.ok) {
+                            console.error(`Erro ao buscar turmas para disciplina ${subject.id_disciplina}:`, response.statusText);
+                            continue;
+                        }
+                        const result = await response.json();
+                        if (result.ok && Array.isArray(result.classes)) {
+                            subject.classes = result.classes.map(turma => ({
+                                id_turma: turma.ID_TURMA,
+                                number: turma.NUMERO,
+                                nickname: turma.APELIDO || "-",
+                                schedule: turma.HORARIOS || [],
+                                location: turma.LOCAL,
+                                students: []
+                            }));
+                            console.log(`✅ ${subject.classes.length} turmas carregadas para disciplina ${subject.name}`, subject.classes);
+                        }
+                        else {
+                            console.log(`❌ Nenhuma turma encontrada para disciplina ${subject.name}`);
+                            subject.classes = []; 
+                        }
+                    } catch (err) {
+                        console.error(`❌ Erro ao carregar turmas para disciplina ${subject.id_disciplina}:`, err);
+                        subject.classes = []; 
+                    }
+                }
+            }
+        }
+        console.log("✅ Carregamento de turmas concluído");
+    } catch (err) {
+        console.error("❌ Erro geral ao carregar turmas:", err);
+    }
+}
+
+
 // Função para carregar disciplinas
 async function carregarDisciplinasParaCursos() {
     try {
@@ -1311,6 +1408,9 @@ async function carregarInstituicoesECursos() {
             
             // Carrega as disciplinas para todos os cursos
             await carregarDisciplinasParaCursos();
+
+            // Carrega as turmas para todas as disciplinas
+            await carregarTurmasParaDisciplinas();
         } else {
             data.institutions = [];
             console.log("Nenhuma instituição encontrada");

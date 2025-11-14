@@ -175,8 +175,7 @@ async function initializeDatabase() {
           CREATE TABLE turma (
             id_turma NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             numero VARCHAR2(100) NOT NULL,
-            horario TIMESTAMP NOT NULL,
-            dia DATE NOT NULL,
+            horarios VARCHAR2(1000) NOT NULL,
             local VARCHAR2(100) NOT NULL,
             apelido VARCHAR2(50),
             id_disciplina NUMBER NOT NULL,
@@ -683,9 +682,12 @@ app.get("/api/subjects", async (req: Request, res: Response) => {
 app.post("/api/classes", async (req: Request, res: Response) => {
   let connection;
   try {
-    const { number, nickname, horario, dia, local, id_disciplina } = req.body;
-    if (!number?.trim() || !horario || !dia || !local?.trim() || !id_disciplina) {
-      return res.status(400).json({ ok: false, error: "Número, horário, dia, local e disciplina são obrigatórios." });
+    const { number, nickname, schedule, location, id_disciplina } = req.body;
+    
+    console.log("📥 Dados recebidos para turma:", { number, nickname, schedule, location, id_disciplina });
+
+    if (!number?.trim() || !schedule || !Array.isArray(schedule) || schedule.length === 0 || !location?.trim() || !id_disciplina) {
+      return res.status(400).json({ ok: false, error: "Número, horários (array), local e disciplina são obrigatórios." });
     }
 
     connection = await getConnection();
@@ -700,16 +702,18 @@ app.post("/api/classes", async (req: Request, res: Response) => {
       return res.status(404).json({ ok: false, error: "Disciplina não encontrada." });
     }
 
+    
+    const horariosJSON = JSON.stringify(schedule);
+
     const result = await connection.execute(
-      `INSERT INTO turma (numero, apelido, horario, dia, local, id_disciplina)
-        VALUES (:numero, :apelido, TO_TIMESTAMP(:horario, 'HH24:MI:SS'), TO_DATE(:dia, 'YYYY-MM-DD'), :local, :id_disciplina)
+      `INSERT INTO turma (numero, apelido, horarios, local, id_disciplina)
+        VALUES (:numero, :apelido, :horarios, :local, :id_disciplina)
         RETURNING id_turma INTO :id`,
       {
         numero: number.trim(),
         apelido: nickname?.trim() || null,
-        horario: horario,
-        dia: dia,
-        local: local.trim(),
+        horarios: horariosJSON,
+        local: location.trim(),
         id_disciplina: id_disciplina,
         id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
       }
@@ -737,7 +741,7 @@ app.get("/api/classes", async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
-    let query = 'SELECT id_turma, numero, apelido, horario, dia, local, id_disciplina FROM turma WHERE 1=1';
+    let query = 'SELECT id_turma, numero, apelido, horarios, local, id_disciplina FROM turma WHERE 1=1';
     const params: any[] = [];
 
     if (id_disciplina) {
@@ -752,7 +756,27 @@ app.get("/api/classes", async (req: Request, res: Response) => {
     query += ' ORDER BY numero';
 
     const result = await connection.execute(query, params);
-    const classes = result.rows || [];
+    
+
+    const classes = (result.rows || []).map((row: any) => {
+      let horariosArray = [];
+      try {
+        if (row.HORARIOS) {
+          horariosArray = JSON.parse(row.HORARIOS);
+        }
+      } catch (e) {
+        console.error("Erro ao parsear horários:", e);
+      }
+
+      return {
+        ID_TURMA: row.ID_TURMA,
+        NUMERO: row.NUMERO,
+        APELIDO: row.APELIDO,
+        HORARIOS: horariosArray,
+        LOCAL: row.LOCAL,
+        ID_DISCIPLINA: row.ID_DISCIPLINA
+      };
+    });
 
     res.json({ ok: true, classes, count: classes.length });
   } catch (err) {
