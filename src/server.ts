@@ -133,6 +133,8 @@ async function initializeDatabase() {
           CREATE TABLE disciplina (
             id_disciplina NUMBER NOT NULL PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
+            codigo VARCHAR2(50) NOT NULL UNIQUE,
+            periodo NUMBER,
             apelido VARCHAR2(50)
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
@@ -344,9 +346,10 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
         telefone: telephone,
         senha: password,
         id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
-      },
-      { autoCommit: true }
+      }
     );
+
+    await connection.commit();
 
     const outBinds = result.outBinds as { id: number[] };
     const userId = outBinds.id[0];
@@ -394,7 +397,8 @@ app.post("/api/login", async (req: Request, res: Response) => {
         email: user.EMAIL,
         nome: user.NOME,
         sobrenome: user.SOBRENOME,
-      },
+      }
+      ,
     });
   } catch (err) {
     console.error("❌ Erro no login:", err);
@@ -438,13 +442,15 @@ app.post("/api/institutions", async (req: Request, res: Response) => {
       `INSERT INTO instituicao (nome, id_usuario)
         VALUES (:nome, :id_usuario)
         RETURNING id_instituicao INTO :id`,
-      { 
+      {
         nome: name.trim(),
         id_usuario: id_usuario,
         id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
-      },
-      { autoCommit: true }
+      }
     );
+
+    await connection.commit();
+
     const outBinds = result.outBinds as { id: number[] };
     const instituicaoId = outBinds.id[0];
 
@@ -462,22 +468,22 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
   let connection;
   try {
     const { id_usuario, name } = req.query;
-    
+
     connection = await getConnection();
-    
+
     let query = 'SELECT id_instituicao, nome, id_usuario FROM instituicao WHERE 1=1';
     const params: any[] = [];
 
     if (id_usuario) {
       query += ' AND id_usuario = :id_usuario';
       params.push(id_usuario);
-    }  
+    }
     if (name) {
         query += ' AND UPPER(nome) LIKE UPPER(:name)';
       params.push(`%${name}%`);
     }
-      
-    query += ' ORDER BY nome';  
+
+    query += ' ORDER BY nome';
     const result = await connection.execute(query, params);
     const institutions = result?.rows || [];
 
@@ -485,6 +491,289 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
   } catch (err) {
     console.error("❌ Erro ao buscar instituições:", err);
     res.status(500).json({ ok: false, error: 'Erro ao buscar instituições' });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
+//  Disciplina - (CRIA E CONSULTA)
+// ===================================================
+app.post("/api/subjects", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { name, code, period, nickname, id_instituicao } = req.body;
+    if (!name?.trim() || !code?.trim() || !period || !id_instituicao) {
+      return res.status(400).json({ ok: false, error: "Nome, código, período e instituição são obrigatórios." });
+    }
+    if (period < 1 || period > 10) {
+      return res.status(400).json({ ok: false, error: "Período deve estar entre 1 e 10." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a instituição existe
+    const institutionCheck = await connection.execute(
+      "SELECT COUNT(*) AS institution_count FROM instituicao WHERE id_instituicao = :id_instituicao",
+      [id_instituicao]
+    );
+    const institutionCount = (institutionCheck.rows?.[0] as any).INSTITUTION_COUNT;
+    if (institutionCount === 0) {
+      return res.status(404).json({ ok: false, error: "Instituição não encontrada." });
+    }
+
+    // Verifica se o código já existe
+    const codeCheck = await connection.execute(
+      "SELECT COUNT(*) AS code_count FROM disciplina WHERE UPPER(codigo) = UPPER(:codigo)",
+      [code]
+    );
+    const codeCount = (codeCheck.rows?.[0] as any).CODE_COUNT;
+    if (codeCount > 0) {
+      return res.status(400).json({ ok: false, error: "Código da disciplina já existe." });
+    }
+
+    const result = await connection.execute(
+      `INSERT INTO disciplina (nome, codigo, periodo, apelido)
+        VALUES (:nome, :codigo, :periodo, :apelido)
+        RETURNING id_disciplina INTO :id`,
+      {
+        nome: name.trim(),
+        codigo: code.trim(),
+        periodo: period,
+        apelido: nickname?.trim() || null,
+        id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      }
+    );
+
+    await connection.commit();
+
+    const outBinds = result.outBinds as { id: number[] };
+    const disciplinaId = outBinds.id[0];
+
+    res.status(201).json({ ok: true, message: "Disciplina criada com sucesso!", disciplinaId });
+  } catch (err) {
+    console.error("❌ Erro ao criar disciplina:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao criar disciplina." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Consulta disciplinas
+app.get("/api/subjects", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_instituicao, name, code } = req.query;
+
+    connection = await getConnection();
+
+    let query = 'SELECT id_disciplina, nome, codigo, periodo, apelido FROM disciplina WHERE 1=1';
+    const params: any[] = [];
+
+    if (id_instituicao) {
+      // Para disciplinas vinculadas à instituição via curso
+      query = `
+        SELECT d.id_disciplina, d.nome, d.codigo, d.periodo, d.apelido
+        FROM disciplina d
+        INNER JOIN rel r ON d.id_disciplina = r.id_disciplina
+        INNER JOIN curso c ON r.id_curso = c.id_curso
+        WHERE c.id_instituicao = :id_instituicao
+      `;
+      params.push(id_instituicao);
+    }
+    if (name) {
+      query += id_instituicao ? ' AND' : ' AND';
+      query += ' UPPER(d.nome) LIKE UPPER(:name)';
+      params.push(`%${name}%`);
+    }
+    if (code) {
+      query += id_instituicao ? ' AND' : ' AND';
+      query += ' UPPER(d.codigo) LIKE UPPER(:code)';
+      params.push(`%${code}%`);
+    }
+
+    query += ' ORDER BY d.nome';
+
+    const result = await connection.execute(query, params);
+    const subjects = result.rows || [];
+
+    res.json({ ok: true, subjects, count: subjects.length });
+  } catch (err) {
+    console.error("❌ Erro ao buscar disciplinas:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao buscar disciplinas." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
+//  Turma - (CRIA E CONSULTA)
+// ===================================================
+app.post("/api/classes", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { number, nickname, horario, dia, local, id_disciplina } = req.body;
+    if (!number?.trim() || !horario || !dia || !local?.trim() || !id_disciplina) {
+      return res.status(400).json({ ok: false, error: "Número, horário, dia, local e disciplina são obrigatórios." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a disciplina existe
+    const disciplineCheck = await connection.execute(
+      "SELECT COUNT(*) AS discipline_count FROM disciplina WHERE id_disciplina = :id_disciplina",
+      [id_disciplina]
+    );
+    const disciplineCount = (disciplineCheck.rows?.[0] as any).DISCIPLINE_COUNT;
+    if (disciplineCount === 0) {
+      return res.status(404).json({ ok: false, error: "Disciplina não encontrada." });
+    }
+
+    const result = await connection.execute(
+      `INSERT INTO turma (numero, apelido, horario, dia, local, id_disciplina)
+        VALUES (:numero, :apelido, TO_TIMESTAMP(:horario, 'HH24:MI:SS'), TO_DATE(:dia, 'YYYY-MM-DD'), :local, :id_disciplina)
+        RETURNING id_turma INTO :id`,
+      {
+        numero: number.trim(),
+        apelido: nickname?.trim() || null,
+        horario: horario,
+        dia: dia,
+        local: local.trim(),
+        id_disciplina: id_disciplina,
+        id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      }
+    );
+
+    await connection.commit();
+
+    const outBinds = result.outBinds as { id: number[] };
+    const turmaId = outBinds.id[0];
+
+    res.status(201).json({ ok: true, message: "Turma criada com sucesso!", turmaId });
+  } catch (err) {
+    console.error("❌ Erro ao criar turma:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao criar turma." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Consulta turmas
+app.get("/api/classes", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_disciplina, number } = req.query;
+
+    connection = await getConnection();
+
+    let query = 'SELECT id_turma, numero, apelido, horario, dia, local, id_disciplina FROM turma WHERE 1=1';
+    const params: any[] = [];
+
+    if (id_disciplina) {
+      query += ' AND id_disciplina = :id_disciplina';
+      params.push(id_disciplina);
+    }
+    if (number) {
+      query += ' AND UPPER(numero) LIKE UPPER(:number)';
+      params.push(`%${number}%`);
+    }
+
+    query += ' ORDER BY numero';
+
+    const result = await connection.execute(query, params);
+    const classes = result.rows || [];
+
+    res.json({ ok: true, classes, count: classes.length });
+  } catch (err) {
+    console.error("❌ Erro ao buscar turmas:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao buscar turmas." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
+//  Estudante - (CRIA E CONSULTA)
+// ===================================================
+app.post("/api/students", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { name, ra, id_turma } = req.body;
+    if (!name?.trim() || !ra?.trim() || !id_turma) {
+      return res.status(400).json({ ok: false, error: "Nome, RA e turma são obrigatórios." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a turma existe
+    const classCheck = await connection.execute(
+      "SELECT COUNT(*) AS class_count FROM turma WHERE id_turma = :id_turma",
+      [id_turma]
+    );
+    const classCount = (classCheck.rows?.[0] as any).CLASS_COUNT;
+    if (classCount === 0) {
+      return res.status(404).json({ ok: false, error: "Turma não encontrada." });
+    }
+
+    const result = await connection.execute(
+      `INSERT INTO estudante (nome, ra, id_turma)
+        VALUES (:nome, :ra, :id_turma)
+        RETURNING id_estudante INTO :id`,
+      {
+        nome: name.trim(),
+        ra: ra.trim(),
+        id_turma: id_turma,
+        id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      }
+    );
+
+    await connection.commit();
+
+    const outBinds = result.outBinds as { id: number[] };
+    const estudanteId = outBinds.id[0];
+
+    res.status(201).json({ ok: true, message: "Estudante criado com sucesso!", estudanteId });
+  } catch (err) {
+    console.error("❌ Erro ao criar estudante:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao criar estudante." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Consulta estudantes
+app.get("/api/students", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_turma, name, ra } = req.query;
+
+    connection = await getConnection();
+
+    let query = 'SELECT id_estudante, nome, ra, id_turma FROM estudante WHERE 1=1';
+    const params: any[] = [];
+
+    if (id_turma) {
+      query += ' AND id_turma = :id_turma';
+      params.push(id_turma);
+    }
+    if (name) {
+      query += ' AND UPPER(nome) LIKE UPPER(:name)';
+      params.push(`%${name}%`);
+    }
+    if (ra) {
+      query += ' AND UPPER(ra) LIKE UPPER(:ra)';
+      params.push(`%${ra}%`);
+    }
+
+    query += ' ORDER BY nome';
+
+    const result = await connection.execute(query, params);
+    const students = result.rows || [];
+
+    res.json({ ok: true, students, count: students.length });
+  } catch (err) {
+    console.error("❌ Erro ao buscar estudantes:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao buscar estudantes." });
   } finally {
     if (connection) await connection.close();
   }
@@ -528,14 +817,16 @@ app.post("/api/courses", async (req: Request, res: Response) => {
       `INSERT INTO curso (nome, periodo_curso, id_instituicao)
         VALUES (:nome, :periodo_curso, :id_instituicao)
         RETURNING id_curso INTO :id`,
-      { 
+      {
         nome: name.trim(),
         periodo_curso: period,
         id_instituicao: id_instituicao,
         id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
-      },
-      { autoCommit: true }
+      }
     );
+
+    await connection.commit();
+
     const outBinds = result.outBinds as { id: number[] };
     const cursoId = outBinds.id[0];
 
@@ -651,9 +942,10 @@ app.post("/api/request-password-reset", async (req: Request, res: Response) => {
          SET token_recuperacao = :token,
              expira_em = TO_TIMESTAMP(:expira, 'YYYY-MM-DD HH24:MI:SS')
        WHERE email = :email`,
-      { token, expira: expireStr, email },
-      { autoCommit: true }
+      { token, expira: expireStr, email }
     );
+
+    await connection.commit();
 
     
     
@@ -744,9 +1036,10 @@ app.post("/api/reset-password", async (req: Request, res: Response) => {
            token_recuperacao = NULL,
            expira_em = NULL
        WHERE email = :email`,
-      { senha: newPassword, email },
-      { autoCommit: true }
+      { senha: newPassword, email }
     );
+
+    await connection.commit();
 
     res.json({ ok: true, message: "Senha redefinida com sucesso." });
   } catch (err) {
