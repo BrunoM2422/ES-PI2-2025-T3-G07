@@ -920,20 +920,59 @@ function importCSV(){
     csvFileInput.click();
 }
 
-function csvData(csvText) {
+
+// =======================
+// PROCESSAR CSV
+// =======================
+async function csvData(csvText) {
+
     // CSV esperado: Nome;RA
     const cls = data.institutions[path[0]].courses[path[1]].subjects[path[2]].classes[path[3]];
+
     const lines = csvText.split(/\r?\n/);
+
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
+
         const columns = line.split(';');
         if (columns.length >= 2) {
+
             const name = columns[0].trim();
             const ra = columns[1].trim();
+
+            // ============================
+            // 🔒 VERIFICAÇÃO LOCAL
+            // Evita adicionar RA duplicado no array
+            // ============================
+            const existsLocal = cls.students.some(s => s.ra === ra);
+            if (existsLocal) {
+                console.warn(`⚠ RA duplicado ignorado no front-end: ${ra}`);
+                continue;
+            }
+
+            // Adiciona no array local
             cls.students.push({ name, ra, grades: [] });
+
+            // ============================
+            // 🔄 ENVIA PARA O BACKEND
+            // ============================
+            try {
+                await fetch("/api/add-student", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name,
+                        ra,
+                        id_turma: cls.id,
+                    })
+                });
+            } catch (err) {
+                console.error("Erro ao enviar estudante ao servidor:", err);
+            }
         }
     }
+
     renderTable();
 }
 

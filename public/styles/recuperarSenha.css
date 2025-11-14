@@ -5,6 +5,7 @@
         Nicolas Mitjans Nunes
 */
 
+/* ===== CONTAINER PRINCIPAL ===== */
 #content {
     flex: 1;
     display: flex;
@@ -12,54 +13,78 @@
     align-items: center;
     justify-content: center;
     padding: 40px;
-    background-color: #f2f6fa;
+    background: linear-gradient(135deg, #e8f1fc, #f7fbff);
 }
 
+/* TÍTULOS  */
 #content p {
-    font-size: 22px;
-    margin-bottom: 20px;
-    font-weight: bold;
-    color: #0077cc;
+    font-size: 24px;
+    margin-bottom: 25px;
+    font-weight: 600;
+    color: #005fa3;
+    text-align: center;
+    letter-spacing: 0.5px;
 }
 
+/* FORM */
 form {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    width: 250px;
+    gap: 18px;
+    width: 300px;
+    padding: 25px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    animation: fadeIn 0.4s ease;
 }
 
+/* INPUTS */
 input {
-    padding: 10px;
-    border: 1px solid #aaa;
-    border-radius: 8px;
-    font-size: 14px;
+    padding: 12px;
+    border: 1px solid #ccd6e0;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: 0.2s;
 }
 
 input:focus {
     border-color: #0077cc;
+    box-shadow: 0 0 5px rgba(0,119,204,0.3);
     outline: none;
 }
 
+/* BOTÃO */
 button {
     background-color: #0077cc;
     color: white;
-    padding: 10px;
+    padding: 12px;
     border: none;
-    border-radius: 8px;
-    font-size: 16px;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: bold;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: 0.3s;
 }
 
 button:hover {
     background-color: #005fa3;
+    transform: translateY(-2px);
 }
 
-#message {
-    margin-top: 15px;
+/* MENSAGENS */
+#message, 
+#message-recover {
+    margin-top: 10px;
     font-size: 15px;
+    text-align: center;
 }
 
-.msg-success { color: green; }
-.msg-error { color: red; }
+.msg-success { color: #1a8f42; font-weight: bold; }
+.msg-error { color: #d62828; font-weight: bold; }
+
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
