@@ -85,16 +85,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateName() {
         const name = nameInput.value.trim();
         
-        if (name === '') {
-            showFieldError(nameInput, 'Nome é obrigatório');
-            return false;
-        }
-        if (name.length < 2) {
-            showFieldError(nameInput, 'Nome deve ter pelo menos 2 caracteres');
-            return false;
-        }
-        if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(name)) {
-            showFieldError(nameInput, 'Nome deve conter apenas letras');
+        if (name === '' || name.length < 2 || !/^[a-zA-ZÀ-ÿ\s]+$/.test(name)) {
+            showFieldError(nameInput, 'Nome é obrigatório | Nome deve ter pelo menos 2 caracteres | Nome deve conter apenas letras');
             return false;
         }
         clearFieldError(nameInput);
@@ -103,16 +95,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateSurname() {
         const surname = surnameInput.value.trim();
-        if (surname === '') {
-            showFieldError(surnameInput, 'Sobrenome é obrigatório');
-            return false;
-        }
-        if (surname.length < 2) {
-            showFieldError(surnameInput, 'Sobrenome deve ter pelo menos 2 caracteres');
-            return false;
-        }
-        if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(surname)) {
-            showFieldError(surnameInput, 'Sobrenome deve conter apenas letras');
+        if (surname === '' || surname.length < 2 || !/^[a-zA-ZÀ-ÿ\s]+$/.test(surname)) {
+            showFieldError(surnameInput, 'Sobrenome é obrigatório | O sobrenome deve conter pelo menos 2 caracteres | Sobrenome deve conter apenas letras');
             return false;
         }
         clearFieldError(surnameInput);
@@ -152,16 +136,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validatePassword() {
         const password = passwordInput.value;
-        if (password === '') {
-            showFieldError(passwordInput, 'Senha é obrigatória');
-            return false;
-        }
-        if (password.length < 6) {
-            showFieldError(passwordInput, 'A senha deve ter pelo menos 6 caracteres');
-            return false;
-        }
-        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-            showFieldError(passwordInput, 'A senha deve conter pelo menos uma letra minúscula, uma maiúscula e um número');
+        if (password === '' || password.length < 6 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+            showFieldError(passwordInput, 'Senha é obrigatória | A senha deve ter pelo menos 6 caracteres | A senha deve conter pelo menos uma letra minúscula, uma maiúscula e um número');
             return false;
         }
         clearFieldError(passwordInput);
@@ -231,16 +207,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showFieldError(input, message) {
-        clearFieldError(input);
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'field-error';
-        errorDiv.textContent = message;
-        errorDiv.style.color = '#e74c3c';
-        errorDiv.style.fontSize = '12px';
-        errorDiv.style.marginTop = '5px';
-        input.parentNode.appendChild(errorDiv);
-        input.style.borderColor = '#e74c3c';
-    }
+    clearFieldError(input);
+
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'field-error';
+
+    // transforma "a | b | c" em linhas separadas
+    const formattedMessage = message.split('|').join('<br>');
+
+    errorDiv.innerHTML = formattedMessage;
+
+    errorDiv.style.color = '#e74c3c';
+    errorDiv.style.fontSize = '12px';
+    errorDiv.style.marginTop = '5px';
+    errorDiv.style.width = '500px';
+
+    input.parentNode.appendChild(errorDiv);
+    input.style.borderColor = '#e74c3c';
+}
+
 
     function clearFieldError(input) {
         const existingError = input.parentNode.querySelector('.field-error');

@@ -78,17 +78,25 @@ async function initializeDatabase() {
     // ==========================================
     await connection.execute(`
       BEGIN
-        EXECUTE IMMEDIATE '
-          CREATE TABLE usuario (
-            id_usuario NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            nome VARCHAR2(100) NOT NULL,
-            sobrenome VARCHAR2(100) NOT NULL,
-            telefone VARCHAR2(20) NOT NULL,
-            email VARCHAR2(100) NOT NULL UNIQUE,
-            senha VARCHAR2(100) NOT NULL
-          )';
-      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
-      END;
+  EXECUTE IMMEDIATE '
+    CREATE TABLE usuario (
+      id_usuario NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      nome VARCHAR2(100) NOT NULL,
+      sobrenome VARCHAR2(100) NOT NULL,
+      telefone VARCHAR2(20) NOT NULL,
+      email VARCHAR2(100) NOT NULL UNIQUE,
+      senha VARCHAR2(100) NOT NULL,
+
+      -- Novas colunas adicionadas diretamente
+      token_recuperacao VARCHAR2(20),
+      expira_em TIMESTAMP
+    )';
+EXCEPTION 
+  WHEN OTHERS THEN 
+    IF SQLCODE != -955 THEN -- ORA-00955: nome já usado
+      RAISE;
+    END IF;
+END;
     `);
 
     // ==========================================
