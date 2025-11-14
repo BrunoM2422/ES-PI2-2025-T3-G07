@@ -731,7 +731,7 @@ addBtn.onclick = () => {
             `<input id="student-name" placeholder="Nome do Aluno" required>
              <input id="student-ra" placeholder="RA" required>
              <button type="submit">Adicionar</button>`,
-            () => {
+            async () => {
                 const name = document.getElementById("student-name").value.trim();
                 const ra = document.getElementById("student-ra").value.trim();
 
@@ -754,7 +754,24 @@ addBtn.onclick = () => {
                     return false;
                 }
 
-                cls.students.push({ name, ra, grades: [] });
+                try {
+                    const alunoSalva = await salvarAlunoNoBanco(
+                        name,  
+                        ra ,
+                        cls.id_turma
+                    );
+                    
+                    if (alunoSalva) {
+                        await carregarInstituicoesECursos();
+                        alert("Aluno adicionado com sucesso!");
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error("Erro ao salvar:", error);
+                    alert("Erro ao salvar aluno.");
+                    return false;
+                }
             });
     }
 };
@@ -1270,6 +1287,34 @@ async function salvarTurmaNoBanco(number, nickname, location, schedule, idDiscip
     }
 }
 
+// 5. Salva o Aluno vinculado à Turma
+async function salvarAlunoNoBanco(name, ra, idTurma) {
+    try {
+        console.log("Enviando aluno para o servidor:", { name, ra, idTurma });
+        const response = await fetch("/api/students", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: name,
+                ra: ra,
+                id_turma: idTurma
+            })
+        });
+        const result = await response.json();
+        console.log("Resposta da API:", result);
+        if (!response.ok || !result.ok) {
+            console.error("Erro ao salvar aluno:", result.error);
+            alert("Erro ao salvar aluno: " + (result.error || "Erro desconhecido"));
+            return false;
+        }
+        console.log("✅ Aluno salvo:", result);
+        return true;
+    } catch (err) {
+        console.error("Erro inesperado ao salvar aluno:", err);
+        alert("Erro de conexão ao salvar aluno.");
+        return false;
+    }
+}
 
 // Função para carregar turmas
 async function carregarTurmasParaDisciplinas() {
@@ -1368,6 +1413,51 @@ async function carregarDisciplinasParaCursos() {
     }
 }
 
+// Função para carregar alunos para turmas
+async function carregarAlunosParaTurmas() {
+    try {
+        console.log("🔄 Carregando alunos para todas as turmas...")
+        for (let inst of data.institutions) {
+            for (let course of inst.courses) {
+                for (let subject of course.subjects) {
+                    for (let cls of subject.classes) {
+                        if (!cls.id_turma) {
+                            console.warn("Turma sem ID:", cls);
+                            continue;
+                        }
+                        try {
+                            const response = await fetch(`/api/students?id_turma=${cls.id_turma}`);
+                            if (!response.ok) {
+                                console.error(`Erro ao buscar alunos para turma ${cls.id_turma}:`, response.statusText);
+                                continue;
+                            }
+                            const result = await response.json();
+                            if (result.ok && Array.isArray(result.students)) {
+                                cls.students = result.students.map(aluno => ({
+                                    name: aluno.NOME,
+                                    ra: aluno.RA,
+                                    grades: []
+                                }));
+                                console.log(`✅ ${cls.students.length} alunos carregados para turma ${cls.number}`, cls.students);
+                            }
+                            else {
+                                console.log(`❌ Nenhum aluno encontrado para turma ${cls.number}`);
+                                cls.students = []; 
+                            }
+                        } catch (err) {
+                            console.error(`❌ Erro ao carregar alunos para turma ${cls.id_turma}:`, err);
+                            cls.students = []; 
+                        }
+                    }
+                }
+            }
+        }
+        console.log("✅ Carregamento de alunos concluído");
+    } catch (err) {
+        console.error("❌ Erro geral ao carregar alunos:", err);
+    }   
+}
+
 async function carregarInstituicoesECursos() {
     try {
         // Faz autenticação primeiro
@@ -1411,6 +1501,9 @@ async function carregarInstituicoesECursos() {
 
             // Carrega as turmas para todas as disciplinas
             await carregarTurmasParaDisciplinas();
+
+            // Carrega os alunos para todas as turmas
+            await carregarAlunosParaTurmas();
         } else {
             data.institutions = [];
             console.log("Nenhuma instituição encontrada");
