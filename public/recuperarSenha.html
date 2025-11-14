@@ -1,87 +1,39 @@
 <!DOCTYPE html>
 <!--
-  Autores:
-    Matheus Antony Lucas Lima
-    Nicolas Mitjans Nunes
+    Autores:
+        Matheus Antony Lucas Lima
+        Nicolas Mitjans Nunes
 -->
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recuperação de Senha - NotaDez</title>
+  <title>Recuperar Senha - NotaDez</title>
   <link rel="stylesheet" href="./styles/main.css">
   <link rel="stylesheet" href="./styles/recuperarSenha.css">
-  <link rel="stylesheet" href="./styles/verificarToken.css">
-  <link rel="stylesheet" href="./styles/redefinir_senha.css">
-  <script defer src="./scripts/recuperacao_controller.js"></script>
-  
-  <style>
-    .page { display: none; }
-    .page.active { display: block; }
-  </style>
 </head>
-
 <body>
   <div id="wrapper">
-
-    <!-- HEADER -->
-    <header id="header">
-      <a href="index.html">
-        <img src="./images/notadezlogo2.png" alt="logo" class="header-logo">
-      </a>
+    <div id="header">
+      <a href="index.html"><img src="./images/notadezlogo2.png" alt="logo" class="header-logo"></a>
       <nav>
         <ul>
           <li><a href="index.html">Log In</a></li>
           <li><a href="criarConta.html">Sign Up</a></li>
         </ul>
       </nav>
-    </header>
+    </div>
 
-    <!-- CONTEÚDO DINÂMICO -->
-    <main id="content">
+    <div id="content">
+      <p>Recuperar Senha</p>
+      <form id="recover-form">
+        <input type="email" id="email" placeholder="Digite seu email" required>
+        <button type="submit">Enviar Token</button>
+      </form>
+      <div id="message"></div>
+    </div>
 
-      <!-- ====================== -->
-      <!--  Página 1: recuperarSenha -->
-      <!-- ====================== -->
-      <section id="page-recover" class="page active">
-        <h1>Recuperar Senha</h1>
-        <form id="recover-form">
-          <input type="email" id="email" placeholder="Digite seu email" required>
-          <button type="submit">Enviar Token</button>
-        </form>
-        <div id="message-recover"></div>
-      </section>
-
-      <!-- ====================== -->
-      <!-- Página 2: verificarToken -->
-      <!-- ====================== -->
-      <section id="page-token" class="page">
-        <h1>Verificar Token</h1>
-        <form id="token-form">
-          <input type="text" id="token" placeholder="Digite o token" required>
-          <button type="submit">Verificar</button>
-        </form>
-        <div id="message-token"></div>
-        <button id="back-to-recover">← Voltar</button>
-      </section>
-
-      <!-- ====================== -->
-      <!-- Página 3: redefinir senha -->
-      <!-- ====================== -->
-      <section id="page-reset" class="page">
-        <h1>Redefinir Senha</h1>
-        <form id="reset-form">
-          <input type="password" id="newPassword" placeholder="Nova senha" required>
-          <input type="password" id="confirmPassword" placeholder="Confirmar senha" required>
-          <button type="submit">Confirmar</button>
-        </form>
-        <div id="message-reset"></div>
-      </section>
-
-    </main>
-
-    <!-- FOOTER -->
-    <footer id="footer">
+    <div id="footer">
       <div class="footer-content">
         <ul class="footer-links">
           <li><a href="sobre.html">Sobre</a></li>
@@ -90,8 +42,9 @@
         </ul>
         <img src="./images/notadezlogo1.png" alt="logo" class="footer-logo">
       </div>
-    </footer>
-
+    </div>
   </div>
+
+  <script src="./scripts/recuperarSenha.js"></script>
 </body>
 </html>
