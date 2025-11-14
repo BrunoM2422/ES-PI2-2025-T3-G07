@@ -11,7 +11,6 @@ const dbConfig = {
   user: 'BANCO_DE_DADOS_1',                    // Substitua pelo seu usuário do Oracle
   password: '1234',                              // Substitua pela sua senha do Oracle
   connectString:'localhost:1521/XEPDB1', 
-  
 };
 
 export async function initOraclePool() {
