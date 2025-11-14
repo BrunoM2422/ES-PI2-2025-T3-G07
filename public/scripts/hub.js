@@ -332,7 +332,7 @@ function renderTable() {
         });
     });
 
-    // --- Gerenciar checkboxes de edição de componentes ---
+// --- Gerenciar checkboxes de edição de componentes ---
 const toggles = document.querySelectorAll(".edit-toggle");
 const allCells = document.querySelectorAll(".grade-cell");
 
@@ -344,7 +344,7 @@ function disableAllGradeCells() {
 disableAllGradeCells();
 
 toggles.forEach(toggle => {
-
+    
     // Impede que o clique abra o modal
     toggle.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -359,7 +359,9 @@ toggles.forEach(toggle => {
 
             const compIndex = toggle.dataset.comp;
             disableAllGradeCells();
-            wrapper.querySelectorAll(`td.grade-cell[data-comp="${compIndex}"]`)
+            
+            
+            document.querySelectorAll(`td.grade-cell[data-comp="${compIndex}"]`)
                 .forEach(td => td.setAttribute("contenteditable", "true"));
         } else {
             disableAllGradeCells();
@@ -524,11 +526,11 @@ addBtn.onclick = () => {
 
         openModal("Adicionar Disciplina",
             `<input id="subject-name" placeholder="Nome da Disciplina" required>
-             <input id="subject-code" placeholder="Código da Disciplina" required>
-             <input id="subject-period" type="number" min="1" max="${maxPeriod}" placeholder="Período (1 a ${maxPeriod})" required>
-             <input id="subject-nickname" placeholder="Apelido da Disciplina (opcional)">
-             <button type="submit">Adicionar</button>`,
-            () => {
+            <input id="subject-code" placeholder="Código da Disciplina" required>
+            <input id="subject-period" type="number" min="1" max="${maxPeriod}" placeholder="Período (1 a ${maxPeriod})" required>
+            <input id="subject-nickname" placeholder="Apelido da Disciplina (opcional)">
+            <button type="submit">Adicionar</button>`,
+            async () => {
                 const name = document.getElementById("subject-name").value.trim();
                 const code = document.getElementById("subject-code").value.trim();
                 const period = parseInt(document.getElementById("subject-period").value);
@@ -539,13 +541,38 @@ addBtn.onclick = () => {
                     return false;
                 }
 
-                const existeCodigo = (course.subjects || []).some(s => s.code && s.code.toLowerCase() === code.toLowerCase());
-                if (existeCodigo) {
+                
+                const subjects = course.subjects || [];
+                const codigoExisteNoCurso = subjects.some(subject => 
+                    subject.code && subject.code.toLowerCase() === code.toLowerCase()
+                );
+
+                if (codigoExisteNoCurso) {
                     alert(`Já existe uma disciplina com o código "${code}" neste curso.`);
                     return false;
                 }
 
-                course.subjects.push({ name, code, period, nickname, classes: [] });
+                try {
+                    // Salva disciplina no banco vinculada ao curso
+                    const disciplinaSalva = await salvarDisciplinaNoBanco(
+                        name, 
+                        code, 
+                        period, 
+                        nickname, 
+                        course.id_curso // ID do curso
+                    );
+                    
+                    if (disciplinaSalva) {
+                        await carregarInstituicoesECursos();
+                        alert("Disciplina adicionada com sucesso!");
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error("Erro ao salvar:", error);
+                    alert("Erro ao salvar disciplina.");
+                    return false;
+                }
             });
     }
 
@@ -1160,6 +1187,90 @@ async function salvarCursoNoBanco(nomeCurso, periodo, idInstituicao) {
     }
 }
 
+// 3. Salva a Disciplina vinculada ao Curso
+async function salvarDisciplinaNoBanco(nomeDisciplina, codigo, periodo, apelido, idCurso) {
+    try {
+        
+        const response = await fetch("/api/subjects", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: nomeDisciplina,
+                code: codigo,
+                period: periodo,
+                nickname: apelido || "-",
+                id_curso: idCurso
+            })
+        });
+
+        const result = await response.json();
+        console.log("Resposta da API:", result);
+        
+        if (!response.ok || !result.ok) {
+            console.error("Erro ao salvar disciplina:", result.error);
+            alert("Erro ao salvar disciplina: " + (result.error || "Erro desconhecido"));
+            return false;
+        }
+
+        console.log("✅ Disciplina salva:", result);
+        return true;
+    } catch (err) {
+        console.error("Erro inesperado ao salvar disciplina:", err);
+        alert("Erro de conexão ao salvar disciplina.");
+        return false;
+    }
+}
+
+// Função para carregar disciplinas
+async function carregarDisciplinasParaCursos() {
+    try {
+        console.log("🔄 Carregando disciplinas para todos os cursos...");
+        
+        for (let inst of data.institutions) {
+            for (let course of inst.courses) {
+                if (!course.id_curso) {
+                    console.warn("Curso sem ID:", course);
+                    continue;
+                }
+                
+                try {
+                    const response = await fetch(`/api/subjects?id_curso=${course.id_curso}`);
+                    
+                    if (!response.ok) {
+                        console.error(`Erro ao buscar disciplinas para curso ${course.id_curso}:`, response.statusText);
+                        continue;
+                    }
+                    
+                    const result = await response.json();
+                    
+                    
+                    if (result.ok && Array.isArray(result.subjects)) {
+                        course.subjects = result.subjects.map(disciplina => ({
+                            id_disciplina: disciplina.ID_DISCIPLINA,
+                            name: disciplina.NOME,
+                            code: disciplina.CODIGO,
+                            period: disciplina.PERIODO,
+                            nickname: disciplina.APELIDO || "-",
+                            classes: []
+                        }));
+                        console.log(`✅ ${course.subjects.length} disciplinas carregadas para curso ${course.name}`);
+                    } else {
+                        console.log(`❌ Nenhuma disciplina encontrada para curso ${course.name}`);
+                        course.subjects = []; 
+                    }
+                } catch (err) {
+                    console.error(`❌ Erro ao carregar disciplinas para curso ${course.id_curso}:`, err);
+                    course.subjects = []; 
+                }
+            }
+        }
+        
+        console.log("✅ Carregamento de disciplinas concluído");
+    } catch (err) {
+        console.error("❌ Erro geral ao carregar disciplinas:", err);
+    }
+}
+
 async function carregarInstituicoesECursos() {
     try {
         // Faz autenticação primeiro
@@ -1197,6 +1308,9 @@ async function carregarInstituicoesECursos() {
             
             // Carrega cursos para cada instituição
             await carregarCursosParaInstituicoes();
+            
+            // Carrega as disciplinas para todos os cursos
+            await carregarDisciplinasParaCursos();
         } else {
             data.institutions = [];
             console.log("Nenhuma instituição encontrada");
@@ -1287,9 +1401,13 @@ function excluirInstituicaoPeloIndice(index) {
 // =======================
 // Inicialização
 // =======================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     if (!verificarAutenticacao()) {
         return;
     }
-    carregarInstituicoesECursos();
+    
+    console.log("Iniciando carregamento de dados...");
+    await carregarInstituicoesECursos();
+    console.log("✅ Dados carregados com sucesso!");
+    
 });

@@ -78,25 +78,25 @@ async function initializeDatabase() {
     // ==========================================
     await connection.execute(`
       BEGIN
-  EXECUTE IMMEDIATE '
-    CREATE TABLE usuario (
-      id_usuario NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      nome VARCHAR2(100) NOT NULL,
-      sobrenome VARCHAR2(100) NOT NULL,
-      telefone VARCHAR2(20) NOT NULL,
-      email VARCHAR2(100) NOT NULL UNIQUE,
-      senha VARCHAR2(100) NOT NULL,
+        EXECUTE IMMEDIATE '
+          CREATE TABLE usuario (
+            id_usuario NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            nome VARCHAR2(100) NOT NULL,
+            sobrenome VARCHAR2(100) NOT NULL,
+            telefone VARCHAR2(20) NOT NULL,
+            email VARCHAR2(100) NOT NULL UNIQUE,
+            senha VARCHAR2(100) NOT NULL,
 
-      -- Novas colunas adicionadas diretamente
-      token_recuperacao VARCHAR2(20),
-      expira_em TIMESTAMP
-    )';
-EXCEPTION 
-  WHEN OTHERS THEN 
-    IF SQLCODE != -955 THEN -- ORA-00955: nome já usado
-      RAISE;
-    END IF;
-END;
+            -- Novas colunas adicionadas diretamente
+            token_recuperacao VARCHAR2(20),
+            expira_em TIMESTAMP
+          )';
+      EXCEPTION 
+        WHEN OTHERS THEN 
+          IF SQLCODE != -955 THEN -- ORA-00955: nome já usado
+            RAISE;
+          END IF;
+      END;
     `);
 
     // ==========================================
@@ -142,7 +142,7 @@ END;
             id_disciplina NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
             codigo VARCHAR2(50) NOT NULL UNIQUE,
-            periodo NUMBER,
+            periodo NUMBER NOT NULL CHECK (periodo BETWEEN 1 AND 12),
             apelido VARCHAR2(50)
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
@@ -193,9 +193,9 @@ END;
       BEGIN
         EXECUTE IMMEDIATE '
           CREATE TABLE estudante (
-            id_estudante NUMBER NOT NULL PRIMARY KEY,
+            id_estudante NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
-            ra VARCHAR2(50),
+            ra VARCHAR2(50) NOT NULL UNIQUE,
             id_turma NUMBER NOT NULL,
             CONSTRAINT fk_estudante_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
           )';
@@ -547,24 +547,27 @@ app.delete('/api/institutions/:id', async (req: Request, res: Response) => {
 app.post("/api/subjects", async (req: Request, res: Response) => {
   let connection;
   try {
-    const { name, code, period, nickname, id_instituicao } = req.body;
-    if (!name?.trim() || !code?.trim() || !period || !id_instituicao) {
-      return res.status(400).json({ ok: false, error: "Nome, código, período e instituição são obrigatórios." });
+    const { name, code, period, nickname, id_curso } = req.body;
+
+    console.log("📥 Dados recebidos para disciplina:", { name, code, period, nickname,id_curso });
+
+    if (!name?.trim() || !code?.trim() || !period || !id_curso) {
+      return res.status(400).json({ ok: false, error: "Nome, código, período  e curso são obrigatórios." });
     }
-    if (period < 1 || period > 10) {
-      return res.status(400).json({ ok: false, error: "Período deve estar entre 1 e 10." });
+    if (period < 1 || period > 12) {
+      return res.status(400).json({ ok: false, error: "Período deve estar entre 1 e 12." });
     }
 
     connection = await getConnection();
 
-    // Verifica se a instituição existe
-    const institutionCheck = await connection.execute(
-      "SELECT COUNT(*) AS institution_count FROM instituicao WHERE id_instituicao = :id_instituicao",
-      [id_instituicao]
+    // Verifica se o curso existe
+    const courseCheck = await connection.execute(
+      "SELECT COUNT(*) AS course_count FROM curso WHERE id_curso = :id_curso",
+      [id_curso]
     );
-    const institutionCount = (institutionCheck.rows?.[0] as any).INSTITUTION_COUNT;
-    if (institutionCount === 0) {
-      return res.status(404).json({ ok: false, error: "Instituição não encontrada." });
+    const courseCount = (courseCheck.rows?.[0] as any).COURSE_COUNT;
+    if (courseCount === 0) {
+      return res.status(404).json({ ok: false, error: "Curso não encontrado." });
     }
 
     // Verifica se o código já existe
@@ -577,6 +580,7 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, error: "Código da disciplina já existe." });
     }
 
+    
     const result = await connection.execute(
       `INSERT INTO disciplina (nome, codigo, periodo, apelido)
         VALUES (:nome, :codigo, :periodo, :apelido)
@@ -590,10 +594,20 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
       }
     );
 
-    await connection.commit();
-
     const outBinds = result.outBinds as { id: number[] };
     const disciplinaId = outBinds.id[0];
+
+    
+    await connection.execute(
+      `INSERT INTO rel (id_curso, id_disciplina)
+        VALUES (:id_curso, :id_disciplina)`,
+      {
+        id_curso: id_curso,
+        id_disciplina: disciplinaId
+      }
+    );
+
+    await connection.commit();
 
     res.status(201).json({ ok: true, message: "Disciplina criada com sucesso!", disciplinaId });
   } catch (err) {
@@ -604,40 +618,52 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
   }
 });
 
+
 // Consulta disciplinas
 app.get("/api/subjects", async (req: Request, res: Response) => {
   let connection;
   try {
-    const { id_instituicao, name, code } = req.query;
+    const { id_curso, name, code } = req.query;
 
     connection = await getConnection();
 
-    let query = 'SELECT id_disciplina, nome, codigo, periodo, apelido FROM disciplina WHERE 1=1';
+    let query = '';
     const params: any[] = [];
 
-    if (id_instituicao) {
-      // Para disciplinas vinculadas à instituição via curso
+    if (id_curso) {
+      
       query = `
         SELECT d.id_disciplina, d.nome, d.codigo, d.periodo, d.apelido
         FROM disciplina d
         INNER JOIN rel r ON d.id_disciplina = r.id_disciplina
         INNER JOIN curso c ON r.id_curso = c.id_curso
-        WHERE c.id_instituicao = :id_instituicao
+        WHERE c.id_curso = :id_curso
       `;
-      params.push(id_instituicao);
-    }
-    if (name) {
-      query += id_instituicao ? ' AND' : ' AND';
-      query += ' UPPER(d.nome) LIKE UPPER(:name)';
-      params.push(`%${name}%`);
-    }
-    if (code) {
-      query += id_instituicao ? ' AND' : ' AND';
-      query += ' UPPER(d.codigo) LIKE UPPER(:code)';
-      params.push(`%${code}%`);
+      params.push(id_curso);
+      
+      if (name) {
+        query += ' AND UPPER(d.nome) LIKE UPPER(:name)';
+        params.push(`%${name}%`);
+      }
+      if (code) {
+        query += ' AND UPPER(d.codigo) LIKE UPPER(:code)';
+        params.push(`%${code}%`);
+      }
+    } else {
+      // Consulta geral de disciplinas
+      query = 'SELECT id_disciplina, nome, codigo, periodo, apelido FROM disciplina WHERE 1=1';
+      
+      if (name) {
+        query += ' AND UPPER(nome) LIKE UPPER(:name)';
+        params.push(`%${name}%`);
+      }
+      if (code) {
+        query += ' AND UPPER(codigo) LIKE UPPER(:code)';
+        params.push(`%${code}%`);
+      }
     }
 
-    query += ' ORDER BY d.nome';
+    query += ' ORDER BY nome';
 
     const result = await connection.execute(query, params);
     const subjects = result.rows || [];
