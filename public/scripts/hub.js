@@ -219,7 +219,7 @@ function renderTable() {
         gradingDiv = document.createElement("div");
         gradingDiv.id = "grading-div";
         document.getElementById("content").appendChild(gradingDiv);
-
+        
         if ((cls.students || []).length && !cls.grading) {
             const btn = document.createElement("button");
             const btnDelete = document.createElement("button");
@@ -233,7 +233,9 @@ function renderTable() {
             btnDelete.textContent = "- Excluir Alunos";
             btnDelete.onclick = () => excluirAlunos(cls);
             gradingDiv.appendChild(btnDelete);
+            
         } else if (cls.grading) {
+        
             const mediaInfo = document.createElement("h3");
             mediaInfo.textContent = `Tipo de Média: ${cls.grading.type}`;
             gradingDiv.appendChild(mediaInfo);
@@ -250,6 +252,7 @@ function renderTable() {
             addCompBtn.onclick = () => adicionarComponente(cls);
             gradingDiv.appendChild(addCompBtn);
 
+
             if (cls.grading.components.length) {
                 const calcBtn = document.createElement("button");
                 calcBtn.classList.add("btn-primary");
@@ -257,6 +260,11 @@ function renderTable() {
                 calcBtn.onclick = () => calcularMedia(cls);
                 gradingDiv.appendChild(calcBtn);
             }
+            const btnDelete = document.createElement("button");
+            btnDelete.id = "delete-selected";
+            btnDelete.textContent = "- Excluir Alunos";
+            btnDelete.onclick = () => excluirAlunos(cls);
+            gradingDiv.appendChild(btnDelete);
         }
     }
 
