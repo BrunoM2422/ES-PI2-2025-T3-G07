@@ -25,7 +25,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT; // Formato de saída como objeto
+
+oracledb.fetchTypeHandler = (meta) => {                       // configuração para tratar CLOB como STRING
+  if (meta.dbType === oracledb.DB_TYPE_CLOB) {
+    return { type: oracledb.STRING };
+  }
+};
 
 // Caminhos absolutos da raiz do projeto e da pasta public
 const ROOT_DIR = path.resolve(__dirname, ".."); // sobe da pasta dist/ para a raiz
@@ -141,7 +147,7 @@ async function initializeDatabase() {
           CREATE TABLE disciplina (
             id_disciplina NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
-            codigo VARCHAR2(50) NOT NULL UNIQUE,
+            codigo VARCHAR2(50) NOT NULL,
             periodo NUMBER NOT NULL CHECK (periodo BETWEEN 1 AND 12),
             apelido VARCHAR2(50)
           )';
@@ -179,6 +185,11 @@ async function initializeDatabase() {
             local VARCHAR2(100) NOT NULL,
             apelido VARCHAR2(50),
             id_disciplina NUMBER NOT NULL,
+            
+            -- Colunas para o sistema de avaliação
+            tipo_media VARCHAR2(20) DEFAULT ''Aritmética'' NOT NULL,
+            componentes_nota CLOB, -- Armazena JSON com { id, name, nickname, weight, ... }
+
             CONSTRAINT fk_turma_disciplina FOREIGN KEY (id_disciplina) REFERENCES disciplina(id_disciplina) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
@@ -194,7 +205,7 @@ async function initializeDatabase() {
           CREATE TABLE estudante (
             id_estudante NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             nome VARCHAR2(100) NOT NULL,
-            ra VARCHAR2(50) NOT NULL UNIQUE,
+            ra VARCHAR2(50) NOT NULL,
             id_turma NUMBER NOT NULL,
             CONSTRAINT fk_estudante_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
           )';
@@ -203,25 +214,47 @@ async function initializeDatabase() {
     `);
 
     // ==========================================
-    // 8. COMPONENTE_NOTA
+    // 8. NOTA_ESTUDANTE 
     // ==========================================
     await connection.execute(`
       BEGIN
         EXECUTE IMMEDIATE '
-          CREATE TABLE componente_nota (
-            id_componente_nota NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            peso NUMBER(4,2) CHECK (peso BETWEEN 0 AND 10),
-            nome VARCHAR2(100) NOT NULL,
-            sigla VARCHAR2(20) NOT NULL,
-            descricao VARCHAR2(255),
-            nota NUMBER(4,2) CHECK (nota BETWEEN 0 AND 10)
+          CREATE TABLE nota_estudante (
+            id_nota NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            id_estudante NUMBER NOT NULL,
+            id_turma NUMBER NOT NULL,
+            componente_id VARCHAR2(100) NOT NULL, -- ID do componente (ex: "comp_123456")
+            nota NUMBER(4,2) CHECK (nota BETWEEN 0 AND 10),
+            CONSTRAINT fk_nota_estudante FOREIGN KEY (id_estudante) REFERENCES estudante(id_estudante) ON DELETE CASCADE,
+            CONSTRAINT fk_nota_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE,
+            CONSTRAINT uq_estudante_componente UNIQUE (id_estudante, id_turma, componente_id)
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
     `);
 
     // ==========================================
-    // 9. AUDITORIA
+    // 9. MEDIA_CALCULADA
+    // ==========================================
+    await connection.execute(`
+      BEGIN
+        EXECUTE IMMEDIATE '
+          CREATE TABLE media_calculada (
+            id_estudante NUMBER NOT NULL,
+            id_turma NUMBER NOT NULL,
+            media NUMBER(4,2),
+            tipo_media VARCHAR2(20) NOT NULL,
+            data_calculo TIMESTAMP DEFAULT SYSTIMESTAMP,
+            CONSTRAINT pk_media_calculada PRIMARY KEY (id_estudante, id_turma),
+            CONSTRAINT fk_media_calc_estudante FOREIGN KEY (id_estudante) REFERENCES estudante(id_estudante) ON DELETE CASCADE,
+            CONSTRAINT fk_media_calc_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE CASCADE
+          )';
+      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+      END;
+    `);
+
+    // ==========================================
+    // 10. AUDITORIA
     // ==========================================
     await connection.execute(`
       BEGIN
@@ -232,25 +265,6 @@ async function initializeDatabase() {
             hora TIMESTAMP,
             id_turma NUMBER,
             CONSTRAINT fk_auditoria_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE SET NULL
-          )';
-      EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
-      END;
-    `);
-
-    // ==========================================
-    // 10. MEDIA (RELACIONAMENTO ENTRE ESTUDANTE, COMPONENTE_NOTA E AUDITORIA)
-    // ==========================================
-    await connection.execute(`
-      BEGIN
-        EXECUTE IMMEDIATE '
-          CREATE TABLE media (
-            id_estudante NUMBER NOT NULL,
-            id_componente_nota NUMBER NOT NULL,
-            id_auditoria NUMBER NOT NULL,
-            CONSTRAINT pk_media PRIMARY KEY (id_estudante, id_componente_nota, id_auditoria),
-            CONSTRAINT fk_media_estudante FOREIGN KEY (id_estudante) REFERENCES estudante(id_estudante) ON DELETE CASCADE,
-            CONSTRAINT fk_media_componente FOREIGN KEY (id_componente_nota) REFERENCES componente_nota(id_componente_nota) ON DELETE CASCADE,
-            CONSTRAINT fk_media_auditoria FOREIGN KEY (id_auditoria) REFERENCES auditoria(id_auditoria) ON DELETE CASCADE
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
@@ -279,7 +293,7 @@ async function initializeDatabase() {
       END;
     `);
 
-    console.log("✅ Tabelas e trigger verificados/criados com sucesso.");
+    console.log("✅ Tabelas (lógica de notas refatorada) e trigger verificados/criados com sucesso.");
 
     // ==========================================
     // Adicionar colunas de recuperação de senha
@@ -493,12 +507,25 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
 
     query += ' ORDER BY nome';
     const result = await connection.execute(query, params);
-    const institutions = result?.rows || [];
+    
+    const institutions = (result.rows || []).map((row: any) => ({
+      ID_INSTITUICAO: row.ID_INSTITUICAO,
+      NOME: row.NOME,
+      ID_USUARIO: row.ID_USUARIO
+    }));
 
-    res.json({ ok: true, institutions, count: institutions.length });
+    res.json({ 
+      ok: true, 
+      institutions: institutions, 
+      count: institutions.length 
+    });
+    
   } catch (err) {
     console.error("❌ Erro ao buscar instituições:", err);
-    res.status(500).json({ ok: false, error: 'Erro ao buscar instituições' });
+    res.status(500).json({ 
+      ok: false, 
+      error: 'Erro ao buscar instituições' 
+    });
   } finally {
     if (connection) await connection.close();
   }
@@ -630,7 +657,7 @@ app.get("/api/subjects", async (req: Request, res: Response) => {
     const params: any[] = [];
 
     if (id_curso) {
-      
+
       query = `
         SELECT d.id_disciplina, d.nome, d.codigo, d.periodo, d.apelido
         FROM disciplina d
@@ -665,12 +692,27 @@ app.get("/api/subjects", async (req: Request, res: Response) => {
     query += ' ORDER BY nome';
 
     const result = await connection.execute(query, params);
-    const subjects = result.rows || [];
+    
+    const subjects = (result.rows || []).map((row: any) => ({
+      ID_DISCIPLINA: row.ID_DISCIPLINA,
+      NOME: row.NOME,
+      CODIGO: row.CODIGO,
+      PERIODO: row.PERIODO,
+      APELIDO: row.APELIDO
+    }));
 
-    res.json({ ok: true, subjects, count: subjects.length });
+    res.json({ 
+      ok: true, 
+      subjects: subjects, 
+      count: subjects.length 
+    });
+    
   } catch (err) {
     console.error("❌ Erro ao buscar disciplinas:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao buscar disciplinas." });
+    res.status(500).json({ 
+      ok: false, 
+      error: "Erro interno ao buscar disciplinas." 
+    });
   } finally {
     if (connection) await connection.close();
   }
@@ -741,7 +783,12 @@ app.get("/api/classes", async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
-    let query = 'SELECT id_turma, numero, apelido, horarios, local, id_disciplina FROM turma WHERE 1=1';
+    let query = `
+      SELECT id_turma, numero, apelido, horarios, local, id_disciplina,
+             tipo_media, componentes_nota 
+      FROM turma 
+      WHERE 1=1
+    `;
     const params: any[] = [];
 
     if (id_disciplina) {
@@ -759,33 +806,133 @@ app.get("/api/classes", async (req: Request, res: Response) => {
     
 
     const classes = (result.rows || []).map((row: any) => {
+      // Processar horários
       let horariosArray = [];
       try {
         if (row.HORARIOS) {
-          horariosArray = JSON.parse(row.HORARIOS);
+          if (typeof row.HORARIOS === 'string') {
+            horariosArray = JSON.parse(row.HORARIOS);
+          } else if (Array.isArray(row.HORARIOS)) {
+            horariosArray = row.HORARIOS;
+          }
         }
       } catch (e) {
         console.error("Erro ao parsear horários:", e);
+        horariosArray = [];
+      }
+      
+      // Processar componentes_nota
+      let componentesArray = [];
+      try {
+        if (row.COMPONENTES_NOTA) {
+          // Se for string, tenta parsear
+          if (typeof row.COMPONENTES_NOTA === 'string') {
+            componentesArray = JSON.parse(row.COMPONENTES_NOTA);
+          } 
+          // Se já for objeto, cria uma cópia limpa
+          else if (typeof row.COMPONENTES_NOTA === 'object' && row.COMPONENTES_NOTA !== null) {
+            // Fazer uma cópia profunda limpa do objeto
+            componentesArray = JSON.parse(JSON.stringify(row.COMPONENTES_NOTA));
+          }
+        }
+      } catch (e) {
+        console.error(`Erro ao processar componentes_nota (ID_TURMA: ${row.ID_TURMA}):`, e);
+        componentesArray = [];
       }
 
+      // Retornar objeto simples e limpo
       return {
         ID_TURMA: row.ID_TURMA,
         NUMERO: row.NUMERO,
         APELIDO: row.APELIDO,
         HORARIOS: horariosArray,
         LOCAL: row.LOCAL,
-        ID_DISCIPLINA: row.ID_DISCIPLINA
+        ID_DISCIPLINA: row.ID_DISCIPLINA,
+        TIPO_MEDIA: row.TIPO_MEDIA,
+        COMPONENTES_NOTA: componentesArray
       };
     });
 
-    res.json({ ok: true, classes, count: classes.length });
+    res.json({ 
+      ok: true, 
+      classes: classes, 
+      count: classes.length 
+    });
+    
   } catch (err) {
     console.error("❌ Erro ao buscar turmas:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao buscar turmas." });
+    res.status(500).json({ 
+      ok: false, 
+      error: "Erro interno ao buscar turmas." 
+    });
   } finally {
     if (connection) await connection.close();
   }
 });
+
+app.get("/api/classes/:id/grading-system", async (req: Request, res: Response) => {
+  let connection;
+
+  try {
+    const { id } = req.params;
+
+    connection = await getConnection();
+
+    const result = await connection.execute(
+      `SELECT tipo_media, componentes_nota 
+         FROM turma 
+        WHERE id_turma = :id_turma`,
+      { id_turma: id }
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "Turma não encontrada." });
+    }
+
+    const row = result.rows[0] as any;
+
+    let componentes = [];
+
+    try {
+      if (row.COMPONENTES_NOTA) {
+
+        if (typeof row.COMPONENTES_NOTA === "string") {
+          componentes = JSON.parse(row.COMPONENTES_NOTA);
+
+        
+        } else if (row.COMPONENTES_NOTA instanceof Buffer) {
+          const text = row.COMPONENTES_NOTA.toString("utf8");
+          componentes = JSON.parse(text);
+
+        
+        } else {
+          console.warn("Valor inesperado em COMPONENTES_NOTA. Ignorando.");
+          componentes = [];
+        }
+      }
+    } catch (e) {
+      console.error(`Erro ao processar componentes_nota (ID_TURMA: ${id}):`, e);
+      componentes = [];
+    }
+
+    return res.json({
+      ok: true,
+      tipo_media: row.TIPO_MEDIA,
+      componentes_nota: componentes
+    });
+
+  } catch (err) {
+    console.error("❌ Erro ao carregar sistema de avaliação:", err);
+    return res.status(500).json({
+      ok: false,
+      error: "Erro interno ao carregar sistema de avaliação."
+    });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+
 
 // ===================================================
 //  Estudante - (CRIA E CONSULTA)
@@ -863,12 +1010,26 @@ app.get("/api/students", async (req: Request, res: Response) => {
     query += ' ORDER BY nome';
 
     const result = await connection.execute(query, params);
-    const students = result.rows || [];
+    
+    const students = (result.rows || []).map((row: any) => ({
+      ID_ESTUDANTE: row.ID_ESTUDANTE,
+      NOME: row.NOME,
+      RA: row.RA,
+      ID_TURMA: row.ID_TURMA
+    }));
 
-    res.json({ ok: true, students, count: students.length });
-  } catch (err) {
+    res.json({ 
+      ok: true, 
+      students: students, 
+      count: students.length 
+    });
+    
+  } catch (err){
     console.error("❌ Erro ao buscar estudantes:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao buscar estudantes." });
+    res.status(500).json({ 
+      ok: false, 
+      error: "Erro interno ao buscar estudantes." 
+    });
   } finally {
     if (connection) await connection.close();
   }
@@ -967,53 +1128,273 @@ app.get("/api/courses", async (req: Request, res: Response) => {
     query += ' ORDER BY c.nome, c.periodo_curso';
 
     const result = await connection.execute(query, params);
-    const courses = result.rows || [];
+    
+    const courses = (result.rows || []).map((row: any) => ({
+      ID_CURSO: row.ID_CURSO,
+      NOME: row.NOME,
+      PERIODO_CURSO: row.PERIODO_CURSO,
+      ID_INSTITUICAO: row.ID_INSTITUICAO,
+      INSTITUICAO_NOME: row.INSTITUICAO_NOME
+    }));
 
-
-    res.json({ ok: true, courses, count: courses.length });
+    res.json({ 
+      ok: true, 
+      courses: courses, 
+      count: courses.length 
+    });
+    
   } catch (err) {
     console.error("❌ Erro ao buscar cursos:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao buscar cursos." });
+    res.status(500).json({ 
+      ok: false, 
+      error: "Erro interno ao buscar cursos." 
+    });
   } finally {
     if (connection) await connection.close();
   }
 });
 
-// Deletar curso
-app.delete('/api/courses/:id', async (req: Request, res: Response) => {
+
+// ===================================================
+//  Sistema de Avaliação (CRIA E CONSULTA)
+// ===================================================
+app.post("/api/classes/:id/grading-system", async (req: Request, res: Response) => {
   let connection;
+
   try {
     const { id } = req.params;
-    const { id_usuario } = req.body;
+    const { tipo_media, componentes } = req.body;
 
-    if (!id_usuario) {
-      return res.status(400).json({ ok: false, error: "Usuário não autenticado." });
+    if (!tipo_media || !componentes || !Array.isArray(componentes)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Tipo de média e lista de componentes são obrigatórios."
+      });
     }
 
     connection = await getConnection();
 
-    // Check if course belongs to user's institution
-    const check = await connection.execute(
-      "SELECT COUNT(*) AS count FROM curso c INNER JOIN instituicao i ON c.id_instituicao = i.id_instituicao WHERE c.id_curso = :id AND i.id_usuario = :id_usuario",
-      [id, id_usuario]
+    await connection.execute(
+      `UPDATE turma
+          SET tipo_media = :tipo_media,
+              componentes_nota = :componentes_nota
+        WHERE id_turma = :id_turma`,
+      {
+        tipo_media,
+        componentes_nota: {
+          val: JSON.stringify(componentes),   // conteúdo do JSON
+          type: oracledb.CLOB                 // garante salvar como CLOB
+        },
+        id_turma: id
+      }
     );
-    const count = (check.rows?.[0] as any).COUNT;
-    if (count === 0) {
-      return res.status(404).json({ ok: false, error: "Curso não encontrado ou não pertence ao usuário." });
-    }
 
-    // Delete (CASCADE will handle related records)
-    await connection.execute("DELETE FROM curso WHERE id_curso = :id", [id]);
     await connection.commit();
 
-    res.json({ ok: true, message: "Curso deletado com sucesso." });
+    return res.json({
+      ok: true,
+      message: "Sistema de avaliação salvo com sucesso!"
+    });
+
   } catch (err) {
-    console.error("❌ Erro ao deletar curso:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao deletar curso." });
+    console.error("❌ Erro ao salvar sistema de avaliação:", err);
+    return res.status(500).json({
+      ok: false,
+      error: "Erro interno ao salvar sistema de avaliação."
+    });
   } finally {
     if (connection) await connection.close();
   }
 });
+
+
+
+// ===================================================
+//  Notas dos Estudantes - (CRIA , ATUALIZA e CONSULTA)
+// ===================================================
+app.post("/api/student-grades", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_estudante, id_turma, componente_id, nota } = req.body;
+
+    if (!id_estudante || !id_turma || !componente_id || nota === undefined) {
+      return res.status(400).json({ ok: false, error: "Todos os campos são obrigatórios (estudante, turma, componente, nota)." });
+    }
+
+    if (nota < 0 || nota > 10) {
+      return res.status(400).json({ ok: false, error: "Nota deve estar entre 0 e 10." });
+    }
+
+    connection = await getConnection();
+
+    // Insere ou atualiza a nota na nova tabela nota_estudante
+    await connection.execute(
+      `MERGE INTO nota_estudante n
+       USING DUAL
+       ON (n.id_estudante = :id_estudante AND n.id_turma = :id_turma AND n.componente_id = :componente_id)
+       WHEN MATCHED THEN
+         UPDATE SET n.nota = :nota
+       WHEN NOT MATCHED THEN
+         INSERT (id_estudante, id_turma, componente_id, nota)
+         VALUES (:id_estudante, :id_turma, :componente_id, :nota)`,
+      {
+        id_estudante: id_estudante,
+        id_turma: id_turma,
+        componente_id: componente_id,
+        nota: nota,
+      }
+    );
+
+    await connection.commit();
+
+    res.json({ ok: true, message: "Nota salva com sucesso!" });
+  } catch (err) {
+    console.error("❌ Erro ao salvar nota:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao salvar nota." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Consulta notas dos estudantes por turma
+app.get("/api/student-grades", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_turma } = req.query;
+
+    if (!id_turma) {
+      return res.status(400).json({ ok: false, error: "ID da turma é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // 1. Busca todos os estudantes da turma
+    const studentsResult = await connection.execute(
+      `SELECT id_estudante, nome, ra FROM estudante WHERE id_turma = :id_turma ORDER BY nome`,
+      [id_turma]
+    );
+
+    // 2. Busca todas as notas da turma
+    const gradesResult = await connection.execute(
+      `SELECT id_estudante, componente_id, nota FROM nota_estudante WHERE id_turma = :id_turma`,
+      [id_turma]
+    );
+
+    // 3. Mapeia as notas
+    const gradesMap = new Map<number, any>(); // Map<id_estudante, {comp_id: nota, ...}>
+    gradesResult.rows?.forEach((row: any) => {
+      if (!gradesMap.has(row.ID_ESTUDANTE)) {
+        gradesMap.set(row.ID_ESTUDANTE, {});
+      }
+      gradesMap.get(row.ID_ESTUDANTE)[row.COMPONENTE_ID] = row.NOTA;
+    });
+
+    // 4. Monta a resposta final
+    const grades = studentsResult.rows?.map((student: any) => {
+      return {
+        ID_ESTUDANTE: student.ID_ESTUDANTE,
+        NOME: student.NOME,
+        RA: student.RA,
+        NOTAS: gradesMap.get(student.ID_ESTUDANTE) || {}
+      };
+    });
+
+    res.json({ ok: true, grades });
+  } catch (err) {
+    console.error("❌ Erro ao buscar notas:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao buscar notas." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+
+// ===================================================
+//  Salvar Médias Calculadas
+// ===================================================
+app.post("/api/save-calculated-averages", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { averages, id_turma, tipo_media } = req.body;
+
+    if (!averages || !id_turma || !tipo_media) {
+      return res.status(400).json({ ok: false, error: "Dados incompletos." });
+    }
+
+    connection = await getConnection();
+
+    for (const avg of averages) {
+      await connection.execute(
+        `MERGE INTO media_calculada USING DUAL
+         ON (id_estudante = :id_estudante AND id_turma = :id_turma)
+         WHEN MATCHED THEN
+           UPDATE SET media = :media, tipo_media = :tipo_media, data_calculo = SYSTIMESTAMP
+         WHEN NOT MATCHED THEN
+           INSERT (id_estudante, id_turma, media, tipo_media)
+           VALUES (:id_estudante, :id_turma, :media, :tipo_media)`,
+        {
+          id_estudante: avg.id_estudante,
+          id_turma: id_turma,
+          media: avg.media,
+          tipo_media: tipo_media
+        }
+      );
+    }
+
+    await connection.commit();
+
+    res.json({ ok: true, message: "Médias salvas com sucesso!" });
+  } catch (err) {
+    console.error("❌ Erro ao salvar médias:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao salvar médias." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
+//  Carregar Médias Calculadas
+// ===================================================
+app.get("/api/calculated-averages", async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id_turma } = req.query;
+
+    if (!id_turma) {
+      return res.status(400).json({ ok: false, error: "ID da turma é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    const result = await connection.execute(
+      `SELECT id_estudante, media, tipo_media 
+       FROM media_calculada 
+       WHERE id_turma = :id_turma`,
+      [id_turma]
+    );
+
+    const averages = (result.rows || []).map((row: any) => ({
+      ID_ESTUDANTE: row.ID_ESTUDANTE,
+      MEDIA: row.MEDIA,
+      TIPO_MEDIA: row.TIPO_MEDIA
+    }));
+
+    res.json({ 
+      ok: true, 
+      averages: averages 
+    });
+    
+  } catch (err) {
+    console.error("❌ Erro ao carregar médias:", err);
+    res.status(500).json({ 
+      ok: false, 
+      error: "Erro interno ao carregar médias." 
+    });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 
 
 // ===================================================

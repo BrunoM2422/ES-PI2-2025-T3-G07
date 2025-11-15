@@ -49,7 +49,7 @@ function verificarAutenticacao() {
 // ==================================================
 // renderTable — render principal adaptado para 5 níveis
 // ==================================================
-function renderTable() {
+async function renderTable() {
     tableBody.innerHTML = "";
     let rows = [];
     noRecords.style.display = "none";
@@ -199,6 +199,11 @@ function renderTable() {
     // Nível 4 — Alunos da turma
     else if (path.length === 4) {
         const cls = data.institutions[path[0]].courses[path[1]].subjects[path[2]].classes[path[3]];
+
+        if (!cls.grading) {
+            await carregarSistemaAvaliacao(cls);
+        }
+
         pageTitle.textContent = `Alunos da turma ${cls.number}`;
         addBtn.textContent = "+ Adicionar Aluno";
         backBtn.classList.remove("hidden");
@@ -224,9 +229,10 @@ function renderTable() {
             let row = `<tr><td class="delete-checkbox"><input type="checkbox" class="solo-delete"></td><td>${stu.name}</td><td>${stu.ra || "-"}</td>`;
             if (!stu.grades) stu.grades = [];
             if (cls.grading && cls.grading.components.length) {
-                cls.grading.components.forEach((c, i) => {
-                    if (stu.grades[i] === undefined) stu.grades[i] = 0;
-                    row += `<td contenteditable="false" data-comp="${i}" class="grade-cell">${stu.grades[i]}</td>
+                cls.grading.components.forEach((comp, i) => {
+                    const componente_id = `comp_${comp.id || i}`;
+                    const nota = stu.grades?.[componente_id] || 0;
+                    row += `<td contenteditable="false" data-comp="${i}" class="grade-cell">${nota}</td>
 `;
                 });
                 row += `<td>${stu.media !== undefined ? stu.media.toFixed(2) : "-"}</td>`;
@@ -285,6 +291,7 @@ function renderTable() {
             btnDelete.onclick = () => excluirAlunos(cls);
             gradingDiv.appendChild(btnDelete);
         }
+         setTimeout(() => configurarEdicaoNotas(), 100);
     }
 
     tableBody.innerHTML = rows.join("");
@@ -795,45 +802,39 @@ function escolherTipoMedia(cls) {
 // - Aritmética -> Ponderada: mantém componentes; se existirem componentes sem weight, cria weight=0.
 // - Ponderada -> Aritmética: mantém componentes; remove campo weight (ou o ignora).
 function editarTipoMedia(cls) {
-    const oldType = cls.grading ? cls.grading.type : null;
-    if (!oldType) {
-        // Se por acaso chamado sem grading, apenas escolhe
-        return escolherTipoMedia(cls);
-    }
-
+    const oldType = cls.grading ? cls.grading.type : "Aritmética";
+    
     openModal("Alterar Tipo de Média",
         `<label><input type="radio" name="tipoMedia" value="Aritmética" ${oldType === "Aritmética" ? "checked" : ""}> Média Aritmética</label><br>
          <label><input type="radio" name="tipoMedia" value="Ponderada" ${oldType === "Ponderada" ? "checked" : ""}> Média Ponderada</label><br><br>
          <button type="submit">Confirmar</button>`,
-        () => {
+        async () => {
             const newType = document.querySelector('input[name="tipoMedia"]:checked').value;
+            
             if (newType === oldType) return true;
 
-            // Aritmética -> Ponderada: manter notas, garantir weight = 0 em cada componente
-            if (oldType === "Aritmética" && newType === "Ponderada") {
-                cls.grading.type = "Ponderada";
-                if (!cls.grading.components) cls.grading.components = [];
-                cls.grading.components.forEach(c => {
-                    // cria weight caso não exista
-                    if (c.weight === undefined || c.weight === null) c.weight = 0;
+            // Atualiza no banco
+            const sucesso = await atualizarTipoMediaNoBanco(cls, newType);
+            if (!sucesso) {
+                alert("Erro ao atualizar tipo de média no banco.");
+                return false;
+            }
+
+            // Atualiza localmente
+            if (!cls.grading) cls.grading = { type: newType, components: [] };
+            cls.grading.type = newType;
+
+            // Se mudando para ponderada, garante que todos os componentes tenham peso
+            if (newType === "Ponderada") {
+                cls.grading.components.forEach(comp => {
+                    if (comp.weight === undefined || comp.weight === null) {
+                        comp.weight = 0;
+                    }
                 });
             }
 
-            // Ponderada -> Aritmética: manter notas, remover pesos (deixa sem propriedade weight)
-            else if (oldType === "Ponderada" && newType === "Aritmética") {
-                cls.grading.type = "Aritmética";
-                if (cls.grading.components) {
-                    cls.grading.components.forEach(c => {
-                        if (c.weight !== undefined) delete c.weight;
-                    });
-                }
-            }
-
-            // Caso inicial (sem tipo), apenas define
-            else {
-                cls.grading.type = newType;
-            }
-            // Não apagamos notas nem componentes
+            alert("Tipo de média atualizado com sucesso!");
+            return true;
         });
 }
 
@@ -842,20 +843,27 @@ function editarTipoMedia(cls) {
 // =======================
 function adicionarComponente(cls) {
     const isPonderada = cls.grading.type === "Ponderada";
+    
     openModal("Adicionar Componente",
         `<input id="comp-name" placeholder="Nome interno (ex: Prova 1)" required>
          <input id="comp-nickname" placeholder="Apelido que aparecerá na tabela (ex: P1)" required>
          <textarea id="comp-desc" placeholder="Descrição (opcional, ex: Prova aplicada em 20/04)"></textarea>
          ${isPonderada ? '<input id="comp-weight" type="number" placeholder="Peso (0 a 10)" min="0" max="10" step="0.1" required>' : ''}
          <button type="submit">Adicionar</button>`,
-        () => {
+        async () => {
             const name = document.getElementById("comp-name").value.trim();
             const nickname = document.getElementById("comp-nickname").value.trim();
             const description = document.getElementById("comp-desc").value.trim();
             const weight = isPonderada ? parseFloat(document.getElementById("comp-weight").value) : undefined;
 
-            if (!name) return alert("Preencha o nome interno do componente.");
-            if (!nickname) return alert("Preencha o apelido do componente (obrigatório).");
+            if (!name) {
+                alert("Preencha o nome interno do componente.");
+                return false;
+            }
+            if (!nickname) {
+                alert("Preencha o apelido do componente (obrigatório).");
+                return false;
+            }
 
             const compObj = { name, nickname, description };
             if (isPonderada) compObj.weight = isNaN(weight) ? 0 : weight;
@@ -863,11 +871,21 @@ function adicionarComponente(cls) {
             if (!cls.grading) cls.grading = { type: isPonderada ? "Ponderada" : "Aritmética", components: [] };
             cls.grading.components.push(compObj);
 
-            // inicializa notas para cada aluno (mantendo o que já existe)
+            // Salva no banco
+            const sucesso = await salvarSistemaAvaliacaoNoBanco(cls);
+            if (!sucesso) {
+                alert("Erro ao salvar componente no banco.");
+                cls.grading.components.pop(); // Remove se falhou
+                return false;
+            }
+
+            // Inicializa notas para cada aluno
             cls.students.forEach(s => {
-                if (!s.grades) s.grades = [];
-                while (s.grades.length < cls.grading.components.length) s.grades.push(0);
+                if (!s.grades) s.grades = {};
             });
+
+            alert("Componente adicionado com sucesso!");
+            return true;
         });
 }
 
@@ -887,31 +905,60 @@ function editarOuRemoverComponente(cls, index) {
          ${isPonderada ? `<input id="edit-weight" type="number" min="0" max="10" step="0.1" value="${comp.weight}">` : ""}
          <button type="submit">Salvar Alterações</button>
          <button type="button" id="remove-comp" style="background:#d9534f;color:white;border:none;border-radius:8px;padding:10px;margin-top:10px;">Remover Componente</button>`,
-        () => {
+        async () => {
             const newName = document.getElementById("edit-name").value.trim();
             const newNickname = document.getElementById("edit-nickname").value.trim();
             const newDesc = document.getElementById("edit-desc").value.trim();
             const newWeight = isPonderada ? parseFloat(document.getElementById("edit-weight").value) : undefined;
 
-            if (!newName) return alert("Nome interno não pode ficar vazio.");
-            if (!newNickname) return alert("Apelido do componente é obrigatório.");
+            if (!newName) {
+                alert("Nome interno não pode ficar vazio.");
+                return false;
+            }
+            if (!newNickname) {
+                alert("Apelido do componente é obrigatório.");
+                return false;
+            }
 
             comp.name = newName;
             comp.nickname = newNickname;
             comp.description = newDesc;
             if (isPonderada) comp.weight = isNaN(newWeight) ? 0 : newWeight;
+
+            // Salva no banco
+            const sucesso = await salvarSistemaAvaliacaoNoBanco(cls);
+            if (!sucesso) {
+                alert("Erro ao salvar alterações no banco.");
+                return false;
+            }
+
+            alert("Componente atualizado com sucesso!");
+            return true;
         });
 
-    // remove handler
+    // Remove handler
     setTimeout(() => {
         const remBtn = document.getElementById("remove-comp");
         if (remBtn) {
-            remBtn.onclick = () => {
+            remBtn.onclick = async () => {
                 if (confirm("Deseja remover este componente?")) {
                     cls.grading.components.splice(index, 1);
+                    
+                    // Remove as notas deste componente de todos os alunos
+                    const componente_id = `comp_${comp.id || index}`;
                     cls.students.forEach(s => {
-                        if (s.grades && s.grades.length > index) s.grades.splice(index, 1);
+                        if (s.grades && s.grades[componente_id]) {
+                            delete s.grades[componente_id];
+                        }
                     });
+
+                    // Salva no banco
+                    const sucesso = await salvarSistemaAvaliacaoNoBanco(cls);
+                    if (!sucesso) {
+                        alert("Erro ao remover componente no banco.");
+                        return;
+                    }
+
                     modal.classList.add("hidden");
                     renderTable();
                 }
@@ -923,31 +970,60 @@ function editarOuRemoverComponente(cls, index) {
 // =======================
 // Calcular Média
 // =======================
-function calcularMedia(cls) {
-    if (!cls.grading || !cls.grading.components.length) return alert("Adicione ao menos um componente.");
+async function calcularMedia(cls) {
+    if (!cls.grading || !cls.grading.components.length) {
+        alert("Adicione ao menos um componente.");
+        return;
+    }
 
-    // if weighted, sum must be 10
-    const totalPeso = cls.grading.components.reduce((sum, c) => sum + (c.weight || 0), 0);
-    if (cls.grading.type === "Ponderada" && Math.abs(totalPeso - 10) > 1e-6)
-        return alert("A soma dos pesos deve ser exatamente 10.");
-
-    cls.students.forEach(stu => {
-        if (!stu.grades || !stu.grades.length) {
-            stu.media = 0;
+    // Verificação de pesos para média ponderada
+    if (cls.grading.type === "Ponderada") {
+        const totalPeso = cls.grading.components.reduce((sum, c) => sum + (c.weight || 0), 0);
+        if (Math.abs(totalPeso - 10) > 0.01) {
+            alert(`A soma dos pesos deve ser exatamente 10. Atual: ${totalPeso}`);
             return;
         }
+    }
+
+    const averages = [];
+
+    cls.students.forEach(stu => {
+        let media = 0;
 
         if (cls.grading.type === "Aritmética") {
-            const soma = stu.grades.reduce((a, b) => a + (parseFloat(b) || 0), 0);
-            stu.media = soma / stu.grades.length;
+            // Soma todas as notas e divide pela quantidade de componentes
+            const notas = Object.values(stu.grades || {});
+            if (notas.length > 0) {
+                const soma = notas.reduce((a, b) => a + (parseFloat(b) || 0), 0);
+                media = soma / notas.length;
+            }
         } else {
-            // ponderada: soma(weight*nota)/10
-            const somaPond = stu.grades.reduce((acc, nota, i) => acc + ((parseFloat(nota) || 0) * (cls.grading.components[i].weight || 0)), 0);
-            stu.media = somaPond / 10;
+            // Média ponderada
+            let somaPond = 0;
+            cls.grading.components.forEach((comp, index) => {
+                const componente_id = `comp_${comp.id || index}`;
+                const nota = stu.grades?.[componente_id] || 0;
+                somaPond += (parseFloat(nota) || 0) * (comp.weight || 0);
+            });
+            media = somaPond / 10;
         }
+
+        stu.media = Math.round(media * 100) / 100;
+        averages.push({ 
+            id_estudante: stu.id_estudante, 
+            media: stu.media 
+        });
     });
 
+    // Salva as médias no banco
+    const sucesso = await salvarMediasNoBanco(averages, cls.id_turma, cls.grading.type);
+    if (!sucesso) {
+        alert("Erro ao salvar médias no banco.");
+        return;
+    }
+
     renderTable();
+    alert("Médias calculadas e salvas com sucesso!");
 }
 
 // =======================
@@ -1063,7 +1139,7 @@ function exportCSV(){
         row.push(stu.ra || "-");
         if (cls.grading && cls.grading.components.length) {
             cls.grading.components.forEach((comp, index) => {
-                const grade = stu.grades[index] !== undefined ? stu.grades[index] : 0;
+                const grade = stu.grades && stu.grades[index] !== undefined ? stu.grades[index] : 0;
                 row.push(grade.toString().replace('.',','));
             });
         }
@@ -1316,6 +1392,240 @@ async function salvarAlunoNoBanco(name, ra, idTurma) {
     }
 }
 
+// 7. Salva a Nota do Estudante para um Componente
+async function salvarNotaNoBanco(id_estudante, id_turma, componente_id, nota) {
+    try {
+        const response = await fetch("/api/student-grades", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                id_estudante: id_estudante,
+                id_turma: id_turma,
+                componente_id: componente_id,
+                nota: nota
+            })
+        });
+
+        const result = await response.json();
+        return result.ok;
+    } catch (err) {
+        console.error("Erro ao salvar nota:", err);
+        return false;
+    }
+}
+
+// 8. Salva as Médias Calculadas no Banco
+async function salvarMediasNoBanco(averages, id_turma, tipo_media) {
+    try {
+        const response = await fetch("/api/save-calculated-averages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                averages: averages,
+                id_turma: id_turma,
+                tipo_media: tipo_media
+            })
+        });
+
+        const result = await response.json();
+        return result.ok;
+    } catch (err) {
+        console.error("Erro ao salvar médias:", err);
+        return false;
+    }
+}
+
+
+// =======================
+// Gerenciar Componentes de Nota
+// =======================
+async function carregarComponentesNota(cls) {
+    try {
+        const response = await fetch(`/api/grade-components?id_turma=${cls.id_turma}`);
+        const result = await response.json();
+        
+        if (result.ok && Array.isArray(result.components)) {
+            cls.grading = cls.grading || { 
+                type: cls.tipo_media || "Aritmética", 
+                components: [] 
+            };
+            cls.grading.components = result.components.map(comp => ({
+                id_componente_nota: comp.ID_COMPONENTE_NOTA,
+                name: comp.NOME,
+                nickname: comp.SIGLA,
+                description: comp.DESCRICAO || "",
+                weight: comp.PESO || 0
+            }));
+        }
+    } catch (err) {
+        console.error("Erro ao carregar componentes:", err);
+    }
+}
+
+async function carregarNotasEstudantes(cls) {
+    try {
+        const response = await fetch(`/api/student-grades?id_turma=${cls.id_turma}`);
+        const result = await response.json();
+        
+        if (result.ok && Array.isArray(result.grades)) {
+            // Inicializa grades para todos os estudantes
+            cls.students.forEach(estudante => {
+                if (!estudante.grades) estudante.grades = {};
+            });
+
+            // Preenche as notas do banco
+            result.grades.forEach(gradeData => {
+                const estudante = cls.students.find(s => s.id_estudante === gradeData.ID_ESTUDANTE);
+                if (estudante && gradeData.NOTAS) {
+                    // NOTAS é um objeto { componente_id: nota }
+                    estudante.grades = { ...estudante.grades, ...gradeData.NOTAS };
+                }
+            });
+        }
+    } catch (err) {
+        console.error("Erro ao carregar notas:", err);
+    }
+}
+
+function configurarEdicaoNotas() {
+    tableBody.querySelectorAll("td.grade-cell").forEach(td => {
+        td.addEventListener("focus", () => {
+            td.dataset.original = td.textContent.trim();
+        });
+
+        td.addEventListener("keydown", async (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                await salvarNotaEmFoco(td);
+                td.blur();
+            }
+        });
+
+        td.addEventListener("blur", async () => {
+            await salvarNotaEmFoco(td);
+        });
+    });
+}
+
+async function salvarNotaEmFoco(td) {
+    const newValue = td.textContent.trim();
+    const originalValue = td.dataset.original;
+    
+    if (newValue !== originalValue) {
+        const rowIndex = td.parentElement.rowIndex - 1;
+        const compIndex = parseInt(td.dataset.comp);
+        const cls = data.institutions[path[0]].courses[path[1]].subjects[path[2]].classes[path[3]];
+        const aluno = cls.students[rowIndex];
+        const componente = cls.grading.components[compIndex];
+        
+        const nota = parseFloat(newValue) || 0;
+        
+        // Validação
+        if (nota < 0 || nota > 10) {
+            alert("Nota deve estar entre 0 e 10.");
+            td.textContent = originalValue;
+            return;
+        }
+        
+        // Gera o componente_id no formato usado pelo servidor
+        const componente_id = `comp_${componente.id || compIndex}`;
+        
+        // Atualiza localmente
+        if (!aluno.grades) aluno.grades = {};
+        aluno.grades[componente_id] = nota;
+        
+        // Salva no banco
+        const sucesso = await salvarNotaNoBanco(
+            aluno.id_estudante,
+            cls.id_turma,
+            componente_id,
+            nota
+        );
+        
+        
+        if (!sucesso) {
+            alert("Erro ao salvar nota no banco.");
+            td.textContent = originalValue;
+        } 
+        
+    }
+}
+
+async function carregarMediasDoBanco(cls) {
+    try {
+        const response = await fetch(`/api/calculated-averages?id_turma=${cls.id_turma}`);
+        const result = await response.json();
+        
+        if (result.ok && Array.isArray(result.averages)) {
+            result.averages.forEach(avg => {
+                const aluno = cls.students.find(s => s.id_estudante === avg.ID_ESTUDANTE);
+                if (aluno) {
+                    aluno.media = avg.MEDIA;
+                }
+            });
+        }
+    } catch (err) {
+        console.error("Erro ao carregar médias:", err);
+    }
+}
+
+// Carregar sistema de avaliação (componentes) do banco
+async function carregarSistemaAvaliacao(cls) {
+    try {
+        const response = await fetch(`/api/classes/${cls.id_turma}/grading-system`);
+        const result = await response.json();
+        
+        if (result.ok) {
+            cls.tipo_media = result.tipo_media || 'Aritmética';
+            
+            let componentes = [];
+            if (result.componentes_nota && Array.isArray(result.componentes_nota)) {
+                componentes = result.componentes_nota;
+            }
+            
+            cls.grading = {
+                type: cls.tipo_media,
+                components: componentes
+            };
+            
+            console.log("✅ Sistema de avaliação carregado:", cls.grading);
+        }
+    } catch (err) {
+        console.error("Erro ao carregar sistema de avaliação:", err);
+    }
+}
+
+// Salvar sistema de avaliação no banco
+async function salvarSistemaAvaliacaoNoBanco(cls) {
+    try {
+        const response = await fetch(`/api/classes/${cls.id_turma}/grading-system`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                tipo_media: cls.grading.type,
+                componentes: cls.grading.components
+            })
+        });
+
+        const result = await response.json();
+        return result.ok;
+    } catch (err) {
+        console.error("Erro ao salvar sistema de avaliação:", err);
+        return false;
+    }
+}
+
+async function atualizarTipoMediaNoBanco(cls, novoTipo) {
+    try {
+        // Atualiza através do endpoint de sistema de avaliação
+        const sucesso = await salvarSistemaAvaliacaoNoBanco(cls);
+        return sucesso;
+    } catch (err) {
+        console.error("Erro ao atualizar tipo de média:", err);
+        return false;
+    }
+}
+
 // Função para carregar turmas
 async function carregarTurmasParaDisciplinas() {
     try {
@@ -1341,9 +1651,10 @@ async function carregarTurmasParaDisciplinas() {
                                 nickname: turma.APELIDO || "-",
                                 schedule: turma.HORARIOS || [],
                                 location: turma.LOCAL,
+                                tipo_media: turma.TIPO_MEDIA,
                                 students: []
                             }));
-                            console.log(`✅ ${subject.classes.length} turmas carregadas para disciplina ${subject.name}`, subject.classes);
+                            console.log(`✅ ${subject.classes.length} turmas carregadas para disciplina ${subject.name}`);
                         }
                         else {
                             console.log(`❌ Nenhuma turma encontrada para disciplina ${subject.name}`);
@@ -1416,7 +1727,7 @@ async function carregarDisciplinasParaCursos() {
 // Função para carregar alunos para turmas
 async function carregarAlunosParaTurmas() {
     try {
-        console.log("🔄 Carregando alunos para todas as turmas...")
+        console.log("🔄 Carregando alunos para todas as turmas...");
         for (let inst of data.institutions) {
             for (let course of inst.courses) {
                 for (let subject of course.subjects) {
@@ -1434,13 +1745,20 @@ async function carregarAlunosParaTurmas() {
                             const result = await response.json();
                             if (result.ok && Array.isArray(result.students)) {
                                 cls.students = result.students.map(aluno => ({
+                                    id_estudante: aluno.ID_ESTUDANTE,
                                     name: aluno.NOME,
                                     ra: aluno.RA,
-                                    grades: []
+                                    grades: {} // Inicializa como objeto vazio
                                 }));
-                                console.log(`✅ ${cls.students.length} alunos carregados para turma ${cls.number}`, cls.students);
-                            }
-                            else {
+                                
+                                // Carrega as notas para esta turma
+                                await carregarNotasEstudantes(cls);
+                                
+                                // Carrega as médias calculadas
+                                await carregarMediasDoBanco(cls);
+                                
+                                console.log(`✅ ${cls.students.length} alunos carregados para turma ${cls.number}`);
+                            } else {
                                 console.log(`❌ Nenhum aluno encontrado para turma ${cls.number}`);
                                 cls.students = []; 
                             }
@@ -1504,6 +1822,13 @@ async function carregarInstituicoesECursos() {
 
             // Carrega os alunos para todas as turmas
             await carregarAlunosParaTurmas();
+
+            // Carrega os componentes de nota para todas as turmas
+            await carregarComponentesNota();
+
+            // Carrega as notas dos estudantes para todas as turmas
+            await carregarNotasEstudantes();
+            
         } else {
             data.institutions = [];
             console.log("Nenhuma instituição encontrada");
