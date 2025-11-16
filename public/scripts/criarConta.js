@@ -1,6 +1,9 @@
 /* Autores: Pedro Henrique Ribeiro Silva Murta
             Gabriel Scolfaro de Azeredo
+            Nicolas Mitjans Nunes
 */
+
+// Aguarda o carregamento completo do DOM antes de executar
 document.addEventListener('DOMContentLoaded', function() {
     // Pega os elementos do formulário
     const createAccountForm = document.querySelector('form');
@@ -9,53 +12,64 @@ document.addEventListener('DOMContentLoaded', function() {
     const emailInput = document.getElementById('email');
     const telephoneInput = document.getElementById('telephone');
     const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
     const submitButton = document.querySelector('button');
 
     // Inicializa a criação de conta
     initializeAccountCreation();
 
     function initializeAccountCreation() {
-        // listeners de evento e de validação
+        // Configura os event listeners para validação em tempo real
         if (createAccountForm) {
             createAccountForm.addEventListener('submit', handleAccountCreation);
         }
+        
+        // Validação para nome - durante digitação e ao sair do campo
         if (nameInput) {
             nameInput.addEventListener('input', validateName);
             nameInput.addEventListener('blur', validateName);
         }
 
+        // Validação para sobrenome
         if (surnameInput) {
             surnameInput.addEventListener('input', validateSurname);
             surnameInput.addEventListener('blur', validateSurname);
         }
 
+        // Validação para email
         if (emailInput) {
             emailInput.addEventListener('input', validateEmail);
             emailInput.addEventListener('blur', validateEmail);
         }
 
+        // Validação para telefone
         if (telephoneInput) {
             telephoneInput.addEventListener('input', validateTelephone);
             telephoneInput.addEventListener('blur', validateTelephone);
         }
 
+        // Validação para senha e confirmação
         if (passwordInput) {
             passwordInput.addEventListener('input', validatePassword);
             passwordInput.addEventListener('blur', validatePassword);
         }
+        if (confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', validatePassword);
+            confirmPasswordInput.addEventListener('blur', validatePassword);
+        }
     }
 
     function handleAccountCreation(event) {
-        event.preventDefault(); // Não deixa default passar
+        event.preventDefault(); // Impede envio padrão do formulário
         
-        clearMessages(); // limpa as mensagens antigas
+        clearMessages(); // Limpa mensagens anteriores
 
-        // valida o formulário
+        // Verifica se todos os campos são válidos
         if (!validateForm()) {
-            return;
+            return; // Para aqui se houver erro
         }
 
-        // pega a data dele
+        // Prepara os dados para envio
         const accountData = {
             name: nameInput.value.trim(),
             surname: surnameInput.value.trim(),
@@ -64,20 +78,27 @@ document.addEventListener('DOMContentLoaded', function() {
             password: passwordInput.value
         };
 
-        // Faz a criação da conta
-        // Envia pro servidor
+        // Envia os dados para criação da conta
         performAccountCreation(accountData);
     }
 
     function validateForm() {
         let isValid = true;
 
-        // valida cada um dos campos
+        // Valida cada campo individualmente
         if (!validateName()) isValid = false;
         if (!validateSurname()) isValid = false;
         if (!validateEmail()) isValid = false;
         if (!validateTelephone()) isValid = false;
         if (!validatePassword()) isValid = false;
+        
+        // Verifica se as senhas coincidem
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            showFieldError(confirmPasswordInput, 'As senhas não coincidem');
+            isValid = false;
+        } else {
+            clearFieldError(confirmPasswordInput);
+        }
 
         return isValid;
     }
@@ -85,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateName() {
         const name = nameInput.value.trim();
         
+        // Nome deve ter pelo menos 2 caracteres e apenas letras
         if (name === '' || name.length < 2 || !/^[a-zA-ZÀ-ÿ\s]+$/.test(name)) {
             showFieldError(nameInput, 'Nome é obrigatório | Nome deve ter pelo menos 2 caracteres | Nome deve conter apenas letras');
             return false;
@@ -95,6 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateSurname() {
         const surname = surnameInput.value.trim();
+        // Mesmas regras do nome
         if (surname === '' || surname.length < 2 || !/^[a-zA-ZÀ-ÿ\s]+$/.test(surname)) {
             showFieldError(surnameInput, 'Sobrenome é obrigatório | O sobrenome deve conter pelo menos 2 caracteres | Sobrenome deve conter apenas letras');
             return false;
@@ -106,6 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateEmail() {
         const email = emailInput.value.trim();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
         if (email === '') {
             showFieldError(emailInput, 'Email é obrigatório');
             return false;
@@ -124,7 +148,8 @@ document.addEventListener('DOMContentLoaded', function() {
             showFieldError(telephoneInput, 'Telefone é obrigatório');
             return false;
         }
-        // Remove todos os caracteres não numéricos para validação
+        
+        // Remove caracteres não numéricos e valida quantidade de dígitos
         const cleanPhone = telephone.replace(/\D/g, '');
         if (cleanPhone.length < 10 || cleanPhone.length > 11) {
             showFieldError(telephoneInput, 'Telefone deve ter 10 ou 11 dígitos');
@@ -136,6 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validatePassword() {
         const password = passwordInput.value;
+        // Senha precisa ter: mínimo 6 caracteres, letra maiúscula, minúscula e número
         if (password === '' || password.length < 6 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
             showFieldError(passwordInput, 'Senha é obrigatória | A senha deve ter pelo menos 6 caracteres | A senha deve conter pelo menos uma letra minúscula, uma maiúscula e um número');
             return false;
@@ -148,6 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             setSubmitButtonState('loading', 'Criando conta...');
 
+            // Envia requisição para a API
             const response = await fetch('/api/create-account', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -173,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             showMessage('Conta criada com sucesso!', 'success');
 
-            // Redireciona após um curto tempo
+            // Redireciona para o hub após breve delay
             setTimeout(() => {
                 window.location.href = 'hub.html';
             }, 1200);
@@ -192,6 +219,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setSubmitButtonState(state, text) {
         if (!submitButton) return;
+        
+        // Controla estado visual do botão de submit
         switch (state) {
             case 'loading':
                 submitButton.disabled = true;
@@ -207,30 +236,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showFieldError(input, message) {
-    clearFieldError(input);
+        clearFieldError(input);
 
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'field-error';
+        // Cria elemento de erro estilizado
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'field-error';
 
-    // transforma "a | b | c" em linhas separadas
-    const formattedMessage = message.split('|').join('<br>');
+        // Formata mensagem com quebras de linha
+        const formattedMessage = message.split('|').join('<br>');
+        errorDiv.innerHTML = formattedMessage;
 
-    errorDiv.innerHTML = formattedMessage;
+        // Estilos para mensagem de erro
+        errorDiv.style.color = '#e74c3c';
+        errorDiv.style.fontSize = '12px';
+        errorDiv.style.marginTop = '5px';
+        errorDiv.style.width = '500px';
 
-    errorDiv.style.color = '#e74c3c';
-    errorDiv.style.fontSize = '12px';
-    errorDiv.style.marginTop = '5px';
-    errorDiv.style.width = '500px';
-
-    input.parentNode.appendChild(errorDiv);
-    input.style.borderColor = '#e74c3c';
-}
-
+        input.parentNode.appendChild(errorDiv);
+        input.style.borderColor = '#e74c3c'; // Borda vermelha para indicar erro
+    }
 
     function clearFieldError(input) {
+        // Remove mensagens de erro anteriores do campo
         const existingError = input.parentNode.querySelector('.field-error');
         if (existingError) existingError.remove();
-        input.style.borderColor = '';
+        input.style.borderColor = ''; // Restaura cor padrão
     }
 
     function showMessage(message, type) {
@@ -242,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
         messageDiv.className = 'account-message';
         messageDiv.textContent = message;
 
-        // Estilo baseado no texto
+        // Aplica estilos baseados no tipo de mensagem
         if (type === 'success') {
             messageDiv.style.cssText = `
                 background-color: #d4edda;
@@ -267,13 +297,16 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
 
-        // insira a mensagem depois do formulário
+        // Insere mensagem após o formulário
         createAccountForm.parentNode.insertBefore(messageDiv, createAccountForm.nextSibling);
     }
 
     function clearMessages() {
+        // Limpa todas as mensagens do formulário
         const messages = document.querySelectorAll('.account-message, .field-error');
         messages.forEach(msg => msg.remove());
+        
+        // Restaura bordas padrão de todos os inputs
         const inputs = document.querySelectorAll('input');
         inputs.forEach(input => {
             input.style.borderColor = '';
