@@ -1,60 +1,69 @@
+/*Design da parte principal da página*/
 #content {
-    flex: 1;
+    flex: 1;/*Ocupar todo o espaço vertical*/
     display: flex;
+    /*Modifica as formas de display*/
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px;
-    background-color: #f7f9fb;
+    padding: 40px; /*Modifica o tamanho*/
+    background-color: #f7f9fb; /*Modifica a cor*/
 }
 
 #content p {
+    /*Modifica tamanhos*/
     font-size: 22px;
     margin-bottom: 20px;
     font-weight: bold;
-    color: #0077cc;
+    color: #0077cc; /*Modifica a cor*/
 }
 
 form {
     display: flex;
     flex-direction: column;
+    /*Modifica tamanhos*/
     gap: 15px;
     width: 250px;
 }
 
 input {
+    /*Modifica tamanhos*/
     padding: 10px;
     border: 1px solid #aaa;
     border-radius: 8px;
     font-size: 14px;
     letter-spacing: 2px;
-    text-align: center;
+    text-align: center; /*Modifica o alinhamento do texto*/
 }
 
 input:focus {
-    border-color: #0077cc;
+    border-color: #0077cc; /*Modifica a cor*/
     outline: none;
 }
 
 button {
+    /*Modifica as cores*/
     background-color: #0077cc;
     color: white;
+    /*Modifica os tamanhos*/
     padding: 10px;
     border: none;
     border-radius: 8px;
     font-size: 16px;
-    cursor: pointer;
-    transition: background 0.3s;
+    cursor: pointer; /*Modifica o cursor quando está em cima do botão*/
+    transition: background 0.3s; /*Faz com que a transição da cor de fundo do botão seja mais suave*/
 }
 
 button:hover {
-    background-color: #005fa3;
+    background-color: #005fa3; /*Modifica a cor*/
 }
 
 #message {
+    /*Modifica os tamanhos*/
     margin-top: 15px;
     font-size: 15px;
 }
 
+/*Define as cores de sucesso e de erro*/
 .msg-success { color: green; }
 .msg-error { color: red; }

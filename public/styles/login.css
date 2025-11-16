@@ -3,8 +3,9 @@
         Bruno Lenitta Machado
         Nicolas Mitjans Nunes
 */
+/*Design da parte principal da página*/
 #content {
-    flex: 1;
+    flex: 1;/*Ocupar todo o espaço vertical*/
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -12,20 +13,25 @@
     padding: 40px;
 }
 
+/*Modifica os tamanhos dos paragrafos contidos no content*/
 #content p {
+
     font-size: 20px;
     margin-bottom: 20px;
     font-weight: bold;
 }
 
 form {
-    display: flex;
+    /*Modifica as formas de display*/
+    display: flex; 
     flex-direction: column;
+    /*Modifica os tamanhos*/
     gap: 15px;
     width: 250px;
 }
 
 input {
+    /*Modifica os tamanhos do input*/
     padding: 10px;
     border: 1px solid #aaa;
     border-radius: 8px;
@@ -33,8 +39,10 @@ input {
 }
 
 button {
+    /*Modifica as cores do botão*/
     background-color: #0077cc;
     color: white;
+    /*Modifica os tamanhos*/
     padding: 10px;
     border: none;
     border-radius: 8px;
@@ -44,20 +52,24 @@ button {
 }
 
 button:hover {
+    /*Modifica a cor do botão quando o mouse está em cima dele*/
     background-color: #005fa3;
 }
 
+
 #recoverPassword {
+    /*Modifica tamanho do padding à direita*/
     padding-right: 20px;
 }
 
 #content div {
+    /*Modifica o tamanho da margin top*/
     margin-top: 15px;
 }
 
 #content a {
-    color: #0077cc;
-    text-decoration: none;
-    font-size: 14px;
-    text-decoration: underline;
+    color: #0077cc; /*Modifica a cor da tag*/
+    text-decoration: none; /*retira a decoração da ancor tag*/
+    font-size: 14px; /*Modifica o tamanho da fonte*/
+    text-decoration: underline; /*Coloca um underline sob a ancor tag*/
 }

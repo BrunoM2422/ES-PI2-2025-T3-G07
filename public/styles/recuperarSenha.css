@@ -5,31 +5,39 @@
         Nicolas Mitjans Nunes
 */
 
+
+/*Design da parte principal da página*/
 #content {
-    flex: 1;
+    flex: 1;/*Ocupar todo o espaço vertical*/
+    /*Modifica as formas de display*/
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px;
-    background-color: #f2f6fa;
+    padding: 40px;/*Modifica o tamanho*/
+    background-color: #f2f6fa; /*Altera a cor*/
 }
 
 #content p {
+    /*Modifica os tamahos dos parágrafos contidos em content*/
     font-size: 22px;
     margin-bottom: 20px;
     font-weight: bold;
-    color: #0077cc;
+    color: #0077cc; /*Modifica a cor do texto*/
 }
 
+/*Modifica o formulário*/
 form {
+    /*Modifica o display*/
     display: flex;
     flex-direction: column;
+    /*Modifica os tamanhos*/
     gap: 15px;
     width: 250px;
 }
 
 input {
+    /*Modifica os tamanhos do input*/
     padding: 10px;
     border: 1px solid #aaa;
     border-radius: 8px;
@@ -37,29 +45,33 @@ input {
 }
 
 input:focus {
-    border-color: #0077cc;
+    border-color: #0077cc; /*Modifica a cor*/
     outline: none;
 }
 
 button {
+    /*Modifica as cores*/
     background-color: #0077cc;
     color: white;
+    /*Modifica os tamanhos*/
     padding: 10px;
     border: none;
     border-radius: 8px;
     font-size: 16px;
-    cursor: pointer;
-    transition: background 0.3s;
+    cursor: pointer; /*Modifica o cursor quando está acima do botão*/
+    transition: background 0.3s; /*Faz com que a transição quando o mouse vai sobre o botão ser mais suave*/
 }
 
 button:hover {
-    background-color: #005fa3;
+    background-color: #005fa3; /*Modifica a cor*/
 }
 
 #message {
+    /*Modifica os tamanhos*/
     margin-top: 15px;
     font-size: 15px;
 }
 
+/*Define as cores do sucesso e do erro*/
 .msg-success { color: green; }
 .msg-error { color: red; }
