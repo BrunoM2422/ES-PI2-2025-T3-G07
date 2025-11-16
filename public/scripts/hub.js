@@ -1058,56 +1058,101 @@ function importCSV(){
 // =======================
 // PROCESSAR CSV
 // =======================
-async function csvData(csvText) {
 
+async function csvData(csvText) {
     // CSV esperado: Nome;RA
     const cls = data.institutions[path[0]].courses[path[1]].subjects[path[2]].classes[path[3]];
 
     const lines = csvText.split(/\r?\n/);
+    
+    let sucessos = 0;
+    let erros = [];
+    
+    // Mostra indicador de carregamento
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Importando alunos do CSV...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
 
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+    try {
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
 
-        const columns = line.split(';');
-        if (columns.length >= 2) {
+            const columns = line.split(';');
+            if (columns.length >= 2) {
+                const name = columns[0].trim();
+                const ra = columns[1].trim();
 
-            const name = columns[0].trim();
-            const ra = columns[1].trim();
+                if (!name || !ra) {
+                    console.warn(`⚠ Linha ${i+1} ignorada: dados incompletos`);
+                    continue;
+                }
 
-            // ============================
-            // 🔒 VERIFICAÇÃO LOCAL
-            // Evita adicionar RA duplicado no array
-            // ============================
-            const existsLocal = cls.students.some(s => s.ra === ra);
-            if (existsLocal) {
-                console.warn(`⚠ RA duplicado ignorado no front-end: ${ra}`);
-                continue;
-            }
+                // ============================
+                // 🔒 VERIFICAÇÃO LOCAL
+                // Evita adicionar RA duplicado no array
+                // ============================
+                const existsLocal = cls.students.some(s => s.ra === ra);
+                if (existsLocal) {
+                    console.warn(`⚠ RA duplicado ignorado: ${ra}`);
+                    erros.push(`RA ${ra}: já existe na turma`);
+                    continue;
+                }
 
-            // Adiciona no array local
-            cls.students.push({ name, ra, grades: [] });
+                // ============================
+                // 📤 ENVIA PARA O BACKEND
+                // ============================
+                try {
+                    const response = await fetch("/api/students", {  // ✅ ENDPOINT CORRETO
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: name,
+                            ra: ra,
+                            id_turma: cls.id_turma  // ✅ USA O ID CORRETO DA TURMA
+                        })
+                    });
 
-            // ============================
-            // 🔄 ENVIA PARA O BACKEND
-            // ============================
-            try {
-                await fetch("/api/add-student", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        name,
-                        ra,
-                        id_turma: cls.id,
-                    })
-                });
-            } catch (err) {
-                console.error("Erro ao enviar estudante ao servidor:", err);
+                    const result = await response.json();
+                    
+                    if (response.ok && result.ok) {
+                        sucessos++;
+                        console.log(`✅ Aluno ${name} (${ra}) adicionado com sucesso`);
+                    } else {
+                        console.error(`Erro ao adicionar ${name} (${ra}):`, result.error);
+                        erros.push(`${name} (${ra}): ${result.error || 'Erro desconhecido'}`);
+                    }
+                } catch (err) {
+                    console.error(`Erro ao enviar estudante ${name} (${ra}):`, err);
+                    erros.push(`${name} (${ra}): Erro de conexão`);
+                }
             }
         }
-    }
 
-    renderTable();
+        // Remove indicador de carregamento
+        document.body.removeChild(loadingMsg);
+
+        // Mostra resultado
+        let mensagem = `✅ ${sucessos} aluno(s) importado(s) com sucesso!`;
+        
+        if (erros.length > 0) {
+            mensagem += `\n\n⚠️ ${erros.length} erro(s):\n` + erros.join('\n');
+        }
+        
+        alert(mensagem);
+
+        // Recarrega os dados para refletir as mudanças
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        // Remove indicador de carregamento em caso de erro
+        if (document.body.contains(loadingMsg)) {
+            document.body.removeChild(loadingMsg);
+        }
+        console.error("Erro ao processar CSV:", err);
+        alert("Erro ao processar arquivo CSV.");
+    }
 }
 
 // =======================
