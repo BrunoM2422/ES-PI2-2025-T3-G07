@@ -532,55 +532,6 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
 });
 
 
-// ===================================================
-//  Deletar Instituição 
-// ===================================================
-app.delete('/api/institutions/:id', async (req: Request, res: Response) => {
-  let connection;
-  try {
-    const { id } = req.params;
-    // ✅ NÃO pega id_usuario do body
-    
-    if (!id) { // ✅ Só verifica se o ID existe
-      return res.status(400).json({ 
-        ok: false, 
-        error: "ID da instituição é obrigatório." 
-      });
-    }
-
-    connection = await getConnection();
-
-    // ✅ Só verifica se a instituição existe
-    const institutionCheck = await connection.execute(
-      "SELECT COUNT(*) AS institution_count FROM instituicao WHERE id_instituicao = :id_instituicao",
-      [id] // ✅ Só usa o ID
-    );
-    
-    const institutionCount = (institutionCheck.rows?.[0] as any).INSTITUTION_COUNT;
-    if (institutionCount === 0) {
-      return res.status(404).json({ 
-        ok: false, 
-        error: "Instituição não encontrada." 
-      });
-    }
-
-    // ✅ Deleta direto
-    await connection.execute(
-      "DELETE FROM instituicao WHERE id_instituicao = :id_instituicao",
-      [id]
-    );
-
-    await connection.commit();
-
-    console.log(`✅ Instituição ID ${id} deletada com sucesso`);
-    res.json({ ok: true, message: "Instituição deletada com sucesso." });
-  } catch (err) {
-    console.error("❌ Erro ao deletar instituição:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao deletar instituição." });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
 
 // ===================================================
 //  Disciplina - (CRIA E CONSULTA)
@@ -790,96 +741,7 @@ app.post("/api/classes", async (req: Request, res: Response) => {
   }
 });
 
-// ===================================================
-//  Deletar Turma
-// ===================================================
-app.delete('/api/classes/:id', async (req: Request, res: Response) => {
-  let connection;
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "ID da turma é obrigatório." });
-    }
 
-    connection = await getConnection();
-
-    // Verifica se a turma existe
-    const classCheck = await connection.execute(
-      "SELECT COUNT(*) AS class_count FROM turma WHERE id_turma = :id_turma",
-      [id]
-    );
-    
-    const classCount = (classCheck.rows?.[0] as any).CLASS_COUNT;
-    if (classCount === 0) {
-      return res.status(404).json({ ok: false, error: "Turma não encontrada." });
-    }
-
-    // Deleta a turma (CASCADE vai deletar alunos, notas e médias)
-    await connection.execute(
-      "DELETE FROM turma WHERE id_turma = :id_turma",
-      [id]
-    );
-
-    await connection.commit();
-
-    console.log(`✅ Turma ID ${id} deletada com sucesso`);
-    res.json({ ok: true, message: "Turma deletada com sucesso." });
-  } catch (err) {
-    console.error("❌ Erro ao deletar turma:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao deletar turma." });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
-// ===================================================
-//  Deletar Disciplina
-// ===================================================
-app.delete('/api/subjects/:id', async (req: Request, res: Response) => {
-  let connection;
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "ID da disciplina é obrigatório." });
-    }
-
-    connection = await getConnection();
-
-    // Verifica se a disciplina existe
-    const subjectCheck = await connection.execute(
-      "SELECT COUNT(*) AS subject_count FROM disciplina WHERE id_disciplina = :id_disciplina",
-      [id]
-    );
-    
-    const subjectCount = (subjectCheck.rows?.[0] as any).SUBJECT_COUNT;
-    if (subjectCount === 0) {
-      return res.status(404).json({ ok: false, error: "Disciplina não encontrada." });
-    }
-
-    // Deleta os relacionamentos na tabela REL primeiro
-    await connection.execute(
-      "DELETE FROM rel WHERE id_disciplina = :id_disciplina",
-      [id]
-    );
-
-    // Deleta a disciplina (CASCADE vai deletar turmas e alunos)
-    await connection.execute(
-      "DELETE FROM disciplina WHERE id_disciplina = :id_disciplina",
-      [id]
-    );
-
-    await connection.commit();
-
-    res.json({ ok: true, message: "Disciplina deletada com sucesso." });
-  } catch (err) {
-    console.error("❌ Erro ao deletar disciplina:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao deletar disciplina." });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
 
 // ===================================================
 //  Deletar Estudante
@@ -1303,45 +1165,6 @@ app.get("/api/courses", async (req: Request, res: Response) => {
   }
 });
 
-//  Deletar Curso
-app.delete('/api/courses/:id', async (req: Request, res: Response) => {
-  let connection;
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "ID do curso é obrigatório." });
-    }
-
-    connection = await getConnection();
-
-    // Verifica se o curso existe
-    const courseCheck = await connection.execute(
-      "SELECT COUNT(*) AS course_count FROM curso WHERE id_curso = :id_curso",
-      [id]
-    );
-    
-    const courseCount = (courseCheck.rows?.[0] as any).COURSE_COUNT;
-    if (courseCount === 0) {
-      return res.status(404).json({ ok: false, error: "Curso não encontrado." });
-    }
-
-    // Deleta o curso (CASCADE vai deletar disciplinas, turmas, alunos, etc.)
-    await connection.execute(
-      "DELETE FROM curso WHERE id_curso = :id_curso",
-      [id]
-    );
-
-    await connection.commit();
-
-    res.json({ ok: true, message: "Curso deletado com sucesso." });
-  } catch (err) {
-    console.error("❌ Erro ao deletar curso:", err);
-    res.status(500).json({ ok: false, error: "Erro interno ao deletar curso." });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
 
 
 
@@ -1747,6 +1570,248 @@ app.post("/api/reset-password", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("❌ Erro ao resetar senha:", err);
     res.status(500).json({ ok: false, error: "Erro no servidor." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+
+// ===================================================
+//  Deletar Instituição (apenas se vazia)
+// ===================================================
+app.delete('/api/institutions/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "ID da instituição é obrigatório." 
+      });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a instituição existe
+    const institutionCheck = await connection.execute(
+      "SELECT COUNT(*) AS institution_count FROM instituicao WHERE id_instituicao = :id_instituicao",
+      [id]
+    );
+    
+    const institutionCount = (institutionCheck.rows?.[0] as any).INSTITUTION_COUNT;
+    if (institutionCount === 0) {
+      return res.status(404).json({ 
+        ok: false, 
+        error: "Instituição não encontrada." 
+      });
+    }
+
+    // ✅ VALIDAÇÃO: Verifica se tem cursos vinculados
+    const coursesCheck = await connection.execute(
+      "SELECT COUNT(*) AS course_count FROM curso WHERE id_instituicao = :id_instituicao",
+      [id]
+    );
+    
+    const courseCount = (coursesCheck.rows?.[0] as any).COURSE_COUNT;
+    if (courseCount > 0) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: `Não é possível excluir esta instituição. Ela possui ${courseCount} curso(s) vinculado(s). Remova todos os cursos primeiro.` 
+      });
+    }
+
+    // Deleta a instituição
+    await connection.execute(
+      "DELETE FROM instituicao WHERE id_instituicao = :id_instituicao",
+      [id]
+    );
+
+    await connection.commit();
+
+    console.log(`✅ Instituição ID ${id} deletada com sucesso`);
+    res.json({ ok: true, message: "Instituição deletada com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar instituição:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar instituição." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
+//  Deletar Curso (apenas se vazio)
+// ===================================================
+app.delete('/api/courses/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "ID do curso é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se o curso existe
+    const courseCheck = await connection.execute(
+      "SELECT COUNT(*) AS course_count FROM curso WHERE id_curso = :id_curso",
+      [id]
+    );
+    
+    const courseCount = (courseCheck.rows?.[0] as any).COURSE_COUNT;
+    if (courseCount === 0) {
+      return res.status(404).json({ ok: false, error: "Curso não encontrado." });
+    }
+
+    // ✅ VALIDAÇÃO: Verifica se tem disciplinas vinculadas
+    const subjectsCheck = await connection.execute(
+      `SELECT COUNT(*) AS subject_count 
+       FROM disciplina d
+       INNER JOIN rel r ON d.id_disciplina = r.id_disciplina
+       WHERE r.id_curso = :id_curso`,
+      [id]
+    );
+    
+    const subjectCount = (subjectsCheck.rows?.[0] as any).SUBJECT_COUNT;
+    if (subjectCount > 0) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: `Não é possível excluir este curso. Ele possui ${subjectCount} disciplina(s) vinculada(s). Remova todas as disciplinas primeiro.` 
+      });
+    }
+
+    // Deleta o curso
+    await connection.execute(
+      "DELETE FROM curso WHERE id_curso = :id_curso",
+      [id]
+    );
+
+    await connection.commit();
+
+    res.json({ ok: true, message: "Curso deletado com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar curso:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar curso." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
+//  Deletar Disciplina (apenas se vazia)
+// ===================================================
+app.delete('/api/subjects/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "ID da disciplina é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a disciplina existe
+    const subjectCheck = await connection.execute(
+      "SELECT COUNT(*) AS subject_count FROM disciplina WHERE id_disciplina = :id_disciplina",
+      [id]
+    );
+    
+    const subjectCount = (subjectCheck.rows?.[0] as any).SUBJECT_COUNT;
+    if (subjectCount === 0) {
+      return res.status(404).json({ ok: false, error: "Disciplina não encontrada." });
+    }
+
+    // ✅ VALIDAÇÃO: Verifica se tem turmas vinculadas
+    const classesCheck = await connection.execute(
+      "SELECT COUNT(*) AS class_count FROM turma WHERE id_disciplina = :id_disciplina",
+      [id]
+    );
+    
+    const classCount = (classesCheck.rows?.[0] as any).CLASS_COUNT;
+    if (classCount > 0) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: `Não é possível excluir esta disciplina. Ela possui ${classCount} turma(s) vinculada(s). Remova todas as turmas primeiro.` 
+      });
+    }
+
+    // Deleta os relacionamentos na tabela REL primeiro
+    await connection.execute(
+      "DELETE FROM rel WHERE id_disciplina = :id_disciplina",
+      [id]
+    );
+
+    // Deleta a disciplina
+    await connection.execute(
+      "DELETE FROM disciplina WHERE id_disciplina = :id_disciplina",
+      [id]
+    );
+
+    await connection.commit();
+
+    res.json({ ok: true, message: "Disciplina deletada com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar disciplina:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar disciplina." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
+//  Deletar Turma (apenas se vazia)
+// ===================================================
+app.delete('/api/classes/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "ID da turma é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a turma existe
+    const classCheck = await connection.execute(
+      "SELECT COUNT(*) AS class_count FROM turma WHERE id_turma = :id_turma",
+      [id]
+    );
+    
+    const classCount = (classCheck.rows?.[0] as any).CLASS_COUNT;
+    if (classCount === 0) {
+      return res.status(404).json({ ok: false, error: "Turma não encontrada." });
+    }
+
+    // ✅ VALIDAÇÃO: Verifica se tem estudantes vinculados
+    const studentsCheck = await connection.execute(
+      "SELECT COUNT(*) AS student_count FROM estudante WHERE id_turma = :id_turma",
+      [id]
+    );
+    
+    const studentCount = (studentsCheck.rows?.[0] as any).STUDENT_COUNT;
+    if (studentCount > 0) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: `Não é possível excluir esta turma. Ela possui ${studentCount} estudante(s) matriculado(s). Remova todos os estudantes primeiro.` 
+      });
+    }
+
+    // Deleta a turma
+    await connection.execute(
+      "DELETE FROM turma WHERE id_turma = :id_turma",
+      [id]
+    );
+
+    await connection.commit();
+
+    console.log(`✅ Turma ID ${id} deletada com sucesso`);
+    res.json({ ok: true, message: "Turma deletada com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar turma:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar turma." });
   } finally {
     if (connection) await connection.close();
   }

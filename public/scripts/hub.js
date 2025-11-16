@@ -1205,215 +1205,7 @@ function exportCSV(){
     URL.revokeObjectURL(url);
 }
 
-// =======================
-// Excluir Alunos (checkboxes)
-// =======================
-async function excluirAlunos(cls) {
-    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
-    
-    if (checkboxesSelected.length === 0) {
-        alert("Selecione pelo menos um aluno para remover.");
-        return;
-    }
-    
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} aluno(s)?\n\n⚠️ ATENÇÃO: Todas as notas e médias vinculadas a este(s) aluno(s) também serão removidas!`)) {
-        return;
-    }
 
-    const idsParaRemover = [];
-    const indicesParaRemover = [];
-    
-    checkboxesSelected.forEach(cb => {
-        const linha = cb.closest('tr');
-        const rowIndex = linha.rowIndex - 1; // -1 por causa do header
-        const aluno = cls.students[rowIndex];
-        
-        if (aluno && aluno.id_estudante) {
-            idsParaRemover.push(aluno.id_estudante);
-            indicesParaRemover.push(rowIndex);
-        }
-    });
-
-    // Mostra indicador de carregamento
-    const loadingMsg = document.createElement('div');
-    loadingMsg.textContent = 'Excluindo alunos...';
-    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
-    document.body.appendChild(loadingMsg);
-
-    try {
-        let erros = [];
-        
-        // Deleta cada aluno do banco
-        for (const id_estudante of idsParaRemover) {
-            const response = await fetch(`/api/students/${id_estudante}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" }
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok || !result.ok) {
-                console.error(`Erro ao deletar estudante ${id_estudante}:`, result.error);
-                erros.push(`Estudante ID ${id_estudante}: ${result.error || "Erro desconhecido"}`);
-            }
-        }
-
-        if (erros.length > 0) {
-            alert("Alguns alunos não puderam ser deletados:\n" + erros.join("\n"));
-        } else {
-            alert("Aluno(s) deletado(s) com sucesso!");
-        }
-
-        // Recarrega os dados para refletir as mudanças
-        await carregarInstituicoesECursos();
-        
-    } catch (err) {
-        console.error("Erro ao deletar alunos:", err);
-        alert("Erro ao deletar alunos. Verifique sua conexão.");
-    } finally {
-        // Remove indicador de carregamento
-        document.body.removeChild(loadingMsg);
-    }
-}
-
-// =======================
-// Excluir Turmas
-// =======================
-async function excluirTurmas(subj) {
-    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
-    if (checkboxesSelected.length === 0) {
-        alert("Por favor, selecione pelo menos uma turma para remover.");
-        return;
-    }
-    
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} turma(s)?\n\n⚠️ ATENÇÃO: Todos os alunos, notas e médias vinculadas a esta(s) turma(s) também serão removidos!`)) {
-        return;
-    }
-
-    const indicesParaRemover = [];
-    const idsParaRemover = [];
-    
-    checkboxesSelected.forEach(cb => {
-        const linha = cb.closest('tr');
-        const index = parseInt(linha.dataset.index);
-        indicesParaRemover.push(index);
-        
-        // Pega o ID da turma do objeto
-        const turma = subj.classes[index];
-        if (turma && turma.id_turma) {
-            idsParaRemover.push(turma.id_turma);
-        }
-    });
-
-    // Mostra indicador de carregamento
-    const loadingMsg = document.createElement('div');
-    loadingMsg.textContent = 'Excluindo turmas...';
-    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
-    document.body.appendChild(loadingMsg);
-
-    try {
-        let erros = [];
-        
-        for (const id_turma of idsParaRemover) {
-            const response = await fetch(`/api/classes/${id_turma}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" }
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok || !result.ok) {
-                console.error(`Erro ao deletar turma ${id_turma}:`, result.error);
-                erros.push(`Turma ID ${id_turma}: ${result.error || "Erro desconhecido"}`);
-            }
-        }
-
-        if (erros.length > 0) {
-            alert("Algumas turmas não puderam ser deletadas:\n" + erros.join("\n"));
-        } else {
-            alert("Turma(s) deletada(s) com sucesso!");
-        }
-
-        // Recarrega os dados para refletir as mudanças
-        await carregarInstituicoesECursos();
-        
-    } catch (err) {
-        console.error("Erro ao deletar turmas:", err);
-        alert("Erro ao deletar turmas. Verifique sua conexão.");
-    } finally {
-        // Remove indicador de carregamento
-        document.body.removeChild(loadingMsg);
-    }
-}
-// =======================
-// Excluir Disciplinas
-// =======================
-async function excluirDisciplina(course) {
-    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
-    if (checkboxesSelected.length === 0) {
-        alert("Por favor, selecione pelo menos uma disciplina para remover.");
-        return;
-    }
-    
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} disciplina(s)?`)) {
-        return;
-    }
-
-    const indicesParaRemover = [];
-    const idsParaRemover = [];
-    
-    checkboxesSelected.forEach(cb => {
-        const linha = cb.closest('tr');
-        const index = parseInt(linha.dataset.index);
-        indicesParaRemover.push(index);
-        
-        // Pega o ID da disciplina do objeto
-        const disciplina = course.subjects[index];
-        if (disciplina && disciplina.id_disciplina) {
-            idsParaRemover.push(disciplina.id_disciplina);
-        }
-    });
-
-    // Mostra indicador de carregamento
-    const loadingMsg = document.createElement('div');
-    loadingMsg.textContent = 'Excluindo disciplinas...';
-    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;';
-    document.body.appendChild(loadingMsg);
-
-    try {
-        let erros = [];
-        
-        for (const id_disciplina of idsParaRemover) {
-            const response = await fetch(`/api/subjects/${id_disciplina}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" }
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok || !result.ok) {
-                console.error(`Erro ao deletar disciplina ${id_disciplina}:`, result.error);
-                erros.push(`Disciplina ID ${id_disciplina}: ${result.error || "Erro desconhecido"}`);
-            }
-        }
-
-        if (erros.length > 0) {
-            alert("Algumas disciplinas não puderam ser deletadas:\n" + erros.join("\n"));
-        } else {
-            alert("Disciplina(s) deletada(s) com sucesso!");
-        }
-
-        // Recarrega os dados para refletir as mudanças
-        await carregarInstituicoesECursos();
-        
-    } catch (err) {
-        console.error("Erro ao deletar disciplinas:", err);
-        alert("Erro ao deletar disciplinas. Verifique sua conexão.");
-    } finally {
-        // Remove indicador de carregamento
-        document.body.removeChild(loadingMsg);
-    }
-}
 // ===== Integração com o servidor =====
 
 // 1 Salvar Instituição
@@ -2115,36 +1907,48 @@ async function carregarCursosParaInstituicoes() {
     }
 }
 
-async function excluirCurso(inst) { 
+
+// =======================
+// Excluir Alunos (checkboxes)
+// =======================
+async function excluirAlunos(cls) {
     const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+    
     if (checkboxesSelected.length === 0) {
-        alert("Por favor, selecione pelo menos um curso para remover.");
+        alert("Selecione pelo menos um aluno para remover.");
+        return;
+    }
+    
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} aluno(s)?\n\n⚠️ ATENÇÃO: Todas as notas e médias vinculadas a este(s) aluno(s) também serão removidas!`)) {
         return;
     }
 
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} curso(s)? `)) {
-        return;
-    }
-
-    const indicesParaRemover = [];
     const idsParaRemover = [];
+    const indicesParaRemover = [];
     
     checkboxesSelected.forEach(cb => {
         const linha = cb.closest('tr');
-        const index = parseInt(linha.dataset.index);
-        indicesParaRemover.push(index);
-
-        const curso = inst.courses[index];
-        if (curso && curso.id_curso) {
-            idsParaRemover.push(curso.id_curso);
+        const rowIndex = linha.rowIndex - 1; // -1 por causa do header
+        const aluno = cls.students[rowIndex];
+        
+        if (aluno && aluno.id_estudante) {
+            idsParaRemover.push(aluno.id_estudante);
+            indicesParaRemover.push(rowIndex);
         }
     });
+
+    // Mostra indicador de carregamento
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Excluindo alunos...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
 
     try {
         let erros = [];
         
-        for (const id_curso of idsParaRemover) {
-            const response = await fetch(`/api/courses/${id_curso}`, {
+        // Deleta cada aluno do banco
+        for (const id_estudante of idsParaRemover) {
+            const response = await fetch(`/api/students/${id_estudante}`, {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" }
             });
@@ -2152,38 +1956,32 @@ async function excluirCurso(inst) {
             const result = await response.json();
             
             if (!response.ok || !result.ok) {
-                console.error(`Erro ao deletar curso ${id_curso}:`, result.error);
-                erros.push(`Curso ID ${id_curso}: ${result.error || "Erro desconhecido"}`);
+                console.error(`Erro ao deletar estudante ${id_estudante}:`, result.error);
+                erros.push(`Estudante ID ${id_estudante}: ${result.error || "Erro desconhecido"}`);
             }
         }
 
         if (erros.length > 0) {
-            alert("Alguns cursos não puderam ser deletados:\n" + erros.join("\n"));
+            alert("Alguns alunos não puderam ser deletados:\n" + erros.join("\n"));
         } else {
-            alert("Curso(s) deletado(s) com sucesso!");
+            alert("Aluno(s) deletado(s) com sucesso!");
         }
 
+        // Recarrega os dados para refletir as mudanças
         await carregarInstituicoesECursos();
         
     } catch (err) {
-        console.error("Erro ao deletar cursos:", err);
-        alert("Erro ao deletar cursos. Verifique sua conexão.");
+        console.error("Erro ao deletar alunos:", err);
+        alert("Erro ao deletar alunos. Verifique sua conexão.");
+    } finally {
+        // Remove indicador de carregamento
+        document.body.removeChild(loadingMsg);
     }
 }
 
-
-tableBody.addEventListener('click', function(event) {
-    // Verifica se o elemento clicado tem a CLASSE 'delete-inst'
-    if (event.target.classList.contains('delete-inst')) {
-        
-        // Pega o índice guardado no data-attribute
-        const indexParaExcluir = event.target.dataset.index;
-
-        // Chama sua função de excluir
-        excluirInstituicaoPeloIndice(indexParaExcluir);
-    }
-});
-
+// =======================
+// Excluir Instituição (com validação)
+// =======================
 async function excluirInstituicaoPeloIndice(index) {
     const inst = data.institutions[index];
     if (!inst) {
@@ -2195,12 +1993,18 @@ async function excluirInstituicaoPeloIndice(index) {
         alert("Instituição sem ID válido.");
         return;
     }
+
+    // ✅ VALIDAÇÃO LOCAL: Verifica se tem cursos
+    const totalCursos = inst.courses?.length || 0;
+    if (totalCursos > 0) {
+        alert(`❌ Não é possível excluir esta instituição.\n\nEla possui ${totalCursos} curso(s) vinculado(s).\n\n💡 Remova todos os cursos primeiro.`);
+        return;
+    }
     
-    if (!confirm(`Tem certeza que deseja excluir a instituição "${inst.name}"?\n\n⚠️ ATENÇÃO: Todos os cursos, disciplinas, turmas e alunos vinculados a esta instituição também serão removidos!`)) {
+    if (!confirm(`Tem certeza que deseja excluir a instituição "${inst.name}"?`)) {
         return;
     }
 
-    // Mostra indicador de carregamento
     const loadingMsg = document.createElement('div');
     loadingMsg.id = 'loading-delete-inst';
     loadingMsg.textContent = 'Excluindo instituição...';
@@ -2217,30 +2021,249 @@ async function excluirInstituicaoPeloIndice(index) {
         
         if (!response.ok || !result.ok) {
             console.error("Erro ao deletar instituição:", result.error);
-            alert("Erro ao deletar instituição: " + (result.error || "Erro desconhecido"));
+            alert(result.error || "Erro desconhecido ao deletar instituição");
             return;
         }
 
-        console.log("✅ Instituição deletada do banco de dados");
-        
-        // Remove do array local
         data.institutions.splice(index, 1);
-        
-        // ✅ CRÍTICO: Reseta o path para o nível 0 (lista de instituições)
         path = [];
-        
-        alert("Instituição deletada com sucesso!");
-        
-        // Recarrega a tabela
+        alert("✅ Instituição deletada com sucesso!");
         await renderTable();
         
     } catch (err) {
         console.error("❌ Erro ao deletar instituição:", err);
-        alert("Erro de conexão ao deletar instituição. Verifique sua conexão.");
+        alert("Erro de conexão ao deletar instituição.");
     } finally {
-        // Remove indicador de carregamento
         const loading = document.getElementById('loading-delete-inst');
         if (loading) document.body.removeChild(loading);
+    }
+}
+
+// =======================
+// Excluir Cursos (com validação)
+// =======================
+async function excluirCurso(inst) { 
+    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+    if (checkboxesSelected.length === 0) {
+        alert("Por favor, selecione pelo menos um curso para remover.");
+        return;
+    }
+
+    const idsParaRemover = [];
+    const cursosComDisciplinas = [];
+    
+    checkboxesSelected.forEach(cb => {
+        const linha = cb.closest('tr');
+        const index = parseInt(linha.dataset.index);
+        const curso = inst.courses[index];
+        
+        if (curso && curso.id_curso) {
+            idsParaRemover.push(curso.id_curso);
+            
+            // ✅ VALIDAÇÃO LOCAL: Verifica se tem disciplinas
+            const totalDisciplinas = curso.subjects?.length || 0;
+            if (totalDisciplinas > 0) {
+                cursosComDisciplinas.push(`${curso.name} (${totalDisciplinas} disciplina${totalDisciplinas > 1 ? 's' : ''})`);
+            }
+        }
+    });
+
+    // Se algum curso tiver disciplinas, bloqueia
+    if (cursosComDisciplinas.length > 0) {
+        alert(`❌ Não é possível excluir os seguintes cursos:\n\n${cursosComDisciplinas.join('\n')}\n\n💡 Remova todas as disciplinas primeiro.`);
+        return;
+    }
+
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} curso(s)?`)) {
+        return;
+    }
+
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Excluindo cursos...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
+
+    try {
+        let erros = [];
+        
+        for (const id_curso of idsParaRemover) {
+            const response = await fetch(`/api/courses/${id_curso}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.ok) {
+                erros.push(result.error || `Curso ID ${id_curso}: Erro desconhecido`);
+            }
+        }
+
+        if (erros.length > 0) {
+            alert("❌ Alguns cursos não puderam ser deletados:\n\n" + erros.join("\n"));
+        } else {
+            alert("✅ Curso(s) deletado(s) com sucesso!");
+        }
+
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        console.error("Erro ao deletar cursos:", err);
+        alert("Erro ao deletar cursos. Verifique sua conexão.");
+    } finally {
+        document.body.removeChild(loadingMsg);
+    }
+}
+
+// =======================
+// Excluir Disciplinas (com validação)
+// =======================
+async function excluirDisciplina(course) {
+    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+    if (checkboxesSelected.length === 0) {
+        alert("Por favor, selecione pelo menos uma disciplina para remover.");
+        return;
+    }
+
+    const idsParaRemover = [];
+    const disciplinasComTurmas = [];
+    
+    checkboxesSelected.forEach(cb => {
+        const linha = cb.closest('tr');
+        const index = parseInt(linha.dataset.index);
+        const disciplina = course.subjects[index];
+        
+        if (disciplina && disciplina.id_disciplina) {
+            idsParaRemover.push(disciplina.id_disciplina);
+            
+            // ✅ VALIDAÇÃO LOCAL: Verifica se tem turmas
+            const totalTurmas = disciplina.classes?.length || 0;
+            if (totalTurmas > 0) {
+                disciplinasComTurmas.push(`${disciplina.name} (${totalTurmas} turma${totalTurmas > 1 ? 's' : ''})`);
+            }
+        }
+    });
+
+    // Se alguma disciplina tiver turmas, bloqueia
+    if (disciplinasComTurmas.length > 0) {
+        alert(`❌ Não é possível excluir as seguintes disciplinas:\n\n${disciplinasComTurmas.join('\n')}\n\n💡 Remova todas as turmas primeiro.`);
+        return;
+    }
+    
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} disciplina(s)?`)) {
+        return;
+    }
+
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Excluindo disciplinas...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
+
+    try {
+        let erros = [];
+        
+        for (const id_disciplina of idsParaRemover) {
+            const response = await fetch(`/api/subjects/${id_disciplina}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.ok) {
+                erros.push(result.error || `Disciplina ID ${id_disciplina}: Erro desconhecido`);
+            }
+        }
+
+        if (erros.length > 0) {
+            alert("❌ Algumas disciplinas não puderam ser deletadas:\n\n" + erros.join("\n"));
+        } else {
+            alert("✅ Disciplina(s) deletada(s) com sucesso!");
+        }
+
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        console.error("Erro ao deletar disciplinas:", err);
+        alert("Erro ao deletar disciplinas. Verifique sua conexão.");
+    } finally {
+        document.body.removeChild(loadingMsg);
+    }
+}
+
+// =======================
+// Excluir Turmas (com validação)
+// =======================
+async function excluirTurmas(subj) {
+    const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+    if (checkboxesSelected.length === 0) {
+        alert("Por favor, selecione pelo menos uma turma para remover.");
+        return;
+    }
+
+    const idsParaRemover = [];
+    const turmasComAlunos = [];
+    
+    checkboxesSelected.forEach(cb => {
+        const linha = cb.closest('tr');
+        const index = parseInt(linha.dataset.index);
+        const turma = subj.classes[index];
+        
+        if (turma && turma.id_turma) {
+            idsParaRemover.push(turma.id_turma);
+            
+            // ✅ VALIDAÇÃO LOCAL: Verifica se tem estudantes
+            const totalEstudantes = turma.students?.length || 0;
+            if (totalEstudantes > 0) {
+                turmasComAlunos.push(`${turma.number} (${totalEstudantes} estudante${totalEstudantes > 1 ? 's' : ''})`);
+            }
+        }
+    });
+
+    // Se alguma turma tiver estudantes, bloqueia
+    if (turmasComAlunos.length > 0) {
+        alert(`❌ Não é possível excluir as seguintes turmas:\n\n${turmasComAlunos.join('\n')}\n\n💡 Remova todos os estudantes primeiro.`);
+        return;
+    }
+    
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} turma(s)?`)) {
+        return;
+    }
+
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Excluindo turmas...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
+
+    try {
+        let erros = [];
+        
+        for (const id_turma of idsParaRemover) {
+            const response = await fetch(`/api/classes/${id_turma}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.ok) {
+                erros.push(result.error || `Turma ID ${id_turma}: Erro desconhecido`);
+            }
+        }
+
+        if (erros.length > 0) {
+            alert("❌ Algumas turmas não puderam ser deletadas:\n\n" + erros.join("\n"));
+        } else {
+            alert("✅ Turma(s) deletada(s) com sucesso!");
+        }
+
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        console.error("Erro ao deletar turmas:", err);
+        alert("Erro ao deletar turmas. Verifique sua conexão.");
+    } finally {
+        document.body.removeChild(loadingMsg);
     }
 }
 // =======================
