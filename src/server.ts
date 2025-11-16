@@ -880,6 +880,50 @@ app.delete('/api/subjects/:id', async (req: Request, res: Response) => {
     if (connection) await connection.close();
   }
 });
+
+// ===================================================
+//  Deletar Estudante
+// ===================================================
+app.delete('/api/students/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "ID do estudante é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se o estudante existe
+    const studentCheck = await connection.execute(
+      "SELECT COUNT(*) AS student_count FROM estudante WHERE id_estudante = :id_estudante",
+      [id]
+    );
+    
+    const studentCount = (studentCheck.rows?.[0] as any).STUDENT_COUNT;
+    if (studentCount === 0) {
+      return res.status(404).json({ ok: false, error: "Estudante não encontrado." });
+    }
+
+    // Deleta o estudante (CASCADE vai deletar as notas vinculadas)
+    await connection.execute(
+      "DELETE FROM estudante WHERE id_estudante = :id_estudante",
+      [id]
+    );
+
+    await connection.commit();
+
+    console.log(`✅ Estudante ID ${id} deletado com sucesso`);
+    res.json({ ok: true, message: "Estudante deletado com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar estudante:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar estudante." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 // Consulta turmas
 app.get("/api/classes", async (req: Request, res: Response) => {
   let connection;

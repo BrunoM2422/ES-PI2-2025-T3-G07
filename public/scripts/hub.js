@@ -1163,22 +1163,72 @@ function exportCSV(){
 // =======================
 // Excluir Alunos (checkboxes)
 // =======================
-function excluirAlunos(cls) {
+async function excluirAlunos(cls) {
     const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
+    
     if (checkboxesSelected.length === 0) {
         alert("Selecione pelo menos um aluno para remover.");
         return;
     }
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} aluno(s)?`)) return;
+    
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} aluno(s)?\n\n⚠️ ATENÇÃO: Todas as notas e médias vinculadas a este(s) aluno(s) também serão removidas!`)) {
+        return;
+    }
 
-    const rasParaRemover = [];
+    const idsParaRemover = [];
+    const indicesParaRemover = [];
+    
     checkboxesSelected.forEach(cb => {
         const linha = cb.closest('tr');
-        const raCell = linha.cells[2];
-        if (raCell) rasParaRemover.push(raCell.textContent);
+        const rowIndex = linha.rowIndex - 1; // -1 por causa do header
+        const aluno = cls.students[rowIndex];
+        
+        if (aluno && aluno.id_estudante) {
+            idsParaRemover.push(aluno.id_estudante);
+            indicesParaRemover.push(rowIndex);
+        }
     });
-    cls.students = cls.students.filter(stu => !rasParaRemover.includes(stu.ra));
-    renderTable();
+
+    // Mostra indicador de carregamento
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Excluindo alunos...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
+
+    try {
+        let erros = [];
+        
+        // Deleta cada aluno do banco
+        for (const id_estudante of idsParaRemover) {
+            const response = await fetch(`/api/students/${id_estudante}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.ok) {
+                console.error(`Erro ao deletar estudante ${id_estudante}:`, result.error);
+                erros.push(`Estudante ID ${id_estudante}: ${result.error || "Erro desconhecido"}`);
+            }
+        }
+
+        if (erros.length > 0) {
+            alert("Alguns alunos não puderam ser deletados:\n" + erros.join("\n"));
+        } else {
+            alert("Aluno(s) deletado(s) com sucesso!");
+        }
+
+        // Recarrega os dados para refletir as mudanças
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        console.error("Erro ao deletar alunos:", err);
+        alert("Erro ao deletar alunos. Verifique sua conexão.");
+    } finally {
+        // Remove indicador de carregamento
+        document.body.removeChild(loadingMsg);
+    }
 }
 
 // =======================
