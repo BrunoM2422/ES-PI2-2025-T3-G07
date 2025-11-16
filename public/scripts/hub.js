@@ -1206,25 +1206,72 @@ function excluirTurmas(subj) {
 // =======================
 // Excluir Disciplinas
 // =======================
-function excluirDisciplina(course) {
+async function excluirDisciplina(course) {
     const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
     if (checkboxesSelected.length === 0) {
         alert("Por favor, selecione pelo menos uma disciplina para remover.");
         return;
     }
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} disciplina(s)?`)) return;
+    
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} disciplina(s)?`)) {
+        return;
+    }
 
     const indicesParaRemover = [];
+    const idsParaRemover = [];
+    
     checkboxesSelected.forEach(cb => {
         const linha = cb.closest('tr');
         const index = parseInt(linha.dataset.index);
         indicesParaRemover.push(index);
+        
+        // Pega o ID da disciplina do objeto
+        const disciplina = course.subjects[index];
+        if (disciplina && disciplina.id_disciplina) {
+            idsParaRemover.push(disciplina.id_disciplina);
+        }
     });
 
-    course.subjects = course.subjects.filter((s, i) => !indicesParaRemover.includes(i));
-    renderTable();
-}
+    // Mostra indicador de carregamento
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Excluindo disciplinas...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;';
+    document.body.appendChild(loadingMsg);
 
+    try {
+        let erros = [];
+        
+        for (const id_disciplina of idsParaRemover) {
+            const response = await fetch(`/api/subjects/${id_disciplina}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.ok) {
+                console.error(`Erro ao deletar disciplina ${id_disciplina}:`, result.error);
+                erros.push(`Disciplina ID ${id_disciplina}: ${result.error || "Erro desconhecido"}`);
+            }
+        }
+
+        if (erros.length > 0) {
+            alert("Algumas disciplinas não puderam ser deletadas:\n" + erros.join("\n"));
+        } else {
+            alert("Disciplina(s) deletada(s) com sucesso!");
+        }
+
+        // Recarrega os dados para refletir as mudanças
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        console.error("Erro ao deletar disciplinas:", err);
+        alert("Erro ao deletar disciplinas. Verifique sua conexão.");
+    } finally {
+        // Remove indicador de carregamento
+        document.body.removeChild(loadingMsg);
+    }
+}
 // ===== Integração com o servidor =====
 
 // 1 Salvar Instituição

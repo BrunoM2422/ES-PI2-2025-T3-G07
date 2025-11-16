@@ -775,6 +775,53 @@ app.post("/api/classes", async (req: Request, res: Response) => {
   }
 });
 
+// ===================================================
+//  Deletar Disciplina
+// ===================================================
+app.delete('/api/subjects/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "ID da disciplina é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a disciplina existe
+    const subjectCheck = await connection.execute(
+      "SELECT COUNT(*) AS subject_count FROM disciplina WHERE id_disciplina = :id_disciplina",
+      [id]
+    );
+    
+    const subjectCount = (subjectCheck.rows?.[0] as any).SUBJECT_COUNT;
+    if (subjectCount === 0) {
+      return res.status(404).json({ ok: false, error: "Disciplina não encontrada." });
+    }
+
+    // Deleta os relacionamentos na tabela REL primeiro
+    await connection.execute(
+      "DELETE FROM rel WHERE id_disciplina = :id_disciplina",
+      [id]
+    );
+
+    // Deleta a disciplina (CASCADE vai deletar turmas e alunos)
+    await connection.execute(
+      "DELETE FROM disciplina WHERE id_disciplina = :id_disciplina",
+      [id]
+    );
+
+    await connection.commit();
+
+    res.json({ ok: true, message: "Disciplina deletada com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar disciplina:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar disciplina." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 // Consulta turmas
 app.get("/api/classes", async (req: Request, res: Response) => {
   let connection;
@@ -1193,6 +1240,8 @@ app.delete('/api/courses/:id', async (req: Request, res: Response) => {
     if (connection) await connection.close();
   }
 });
+
+
 
 // ===================================================
 //  Sistema de Avaliação (CRIA E CONSULTA)
