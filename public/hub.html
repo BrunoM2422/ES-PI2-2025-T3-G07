@@ -8,6 +8,8 @@
         Atualização: Sistema de Notas e Médias (2025)
 -->
 <html lang="pt-BR">
+
+<!-- head no qual contém elementos que definem: alfabeto utilizado, tamanhos do dispositivo, os links para o css (design), e o link para o js(script)-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,7 +19,10 @@
     <script defer src="./scripts/hub.js"></script>
 </head>
 <body>
+    <!--wrapper funciona para armazenar os conteúdos do site-->
     <div id="wrapper">
+        <!--header é o que será mostrado no topo da página, usado para facilitar a navegação do usuário.
+            A tag header pode ser substituída por div sem grandes prejuízos-->
         <header id="header">
             <a href="index.html"><img src="./images/notadezlogo2.png" alt="logo" class="header-logo"></a>
             <nav>
@@ -27,13 +32,19 @@
             </nav>
         </header>
 
+
+        <!--Conteúdo principal da página, contém listas dinâmicas que são alteradas pelo hub.js
+            Inicialmente mostra as instituições, depois cursos, depois disciplinas, depois turmas, depois alunos-->
+
         <main id="content">
             <section class="hub-container">
                 <div class="hub-header">
                     <h2 id="page-title">Instituições e Cursos Cadastrados</h2>
                     <div class="hub-actions">
+                        <!--O botão voltar aparece após a página de instituição-->
                         <button id="back-button" class="hidden">← Voltar</button>
                         <button id="add-button">+ Adicionar Instituição</button>
+                        <!--Os botões csv aparecem somente na página que contém os alunos-->
                         <button id="csv-button" class="hidden">+ Importar CSV</button>
                         <button id="export-csv-button" class="hidden"> Exportar CSV </button>
                     </div>
@@ -65,6 +76,8 @@
             </div>
         </div>
 
+        <!--Footer para garantir usabilidade e facilidade para acessar diferentes páginas, a tag footer pode ser
+            substituída sem grandes prejuízos pela tag div-->
         <footer id="footer">
             <div class="footer-content">
                 <ul class="footer-links">
