@@ -11,19 +11,21 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { enviarEmailRecuperacao } from "./services/emailService.js";
 
-dotenv.config();
+dotenv.config(); // Carrega variáveis de ambiente do .env
 
 /*
   Autores:
     Gabriel Scolfaro de Azeredo (principal)
     Matheus Antony Lucas Lima
+    Nicolas Mitjans Nunes
+    Pedro Henrique Ribeiro Silva Murta
 */
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);  // Pega a URL do arquivo atual
+const __dirname = path.dirname(__filename);         // Diretório atual do arquivo
 
-const app = express();
-const PORT = 3000;
+const app = express();  // Cria a aplicação Express
+const PORT = 3000;      // Porta do servidor
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT; // Formato de saída como objeto
 
@@ -42,7 +44,7 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Public path
+// Servindo arquivos estáticos
 app.use(express.static(PUBLIC_DIR));
 app.use(express.static(path.join(__dirname, "../public")));
 app.use("/htmls", express.static(path.join(PUBLIC_DIR, "htmls")));
@@ -345,17 +347,19 @@ app.post("/api/create-account", async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
+    // Verifica se o email já existe
     const check = await connection.execute(
       "SELECT COUNT(*) AS COUNT FROM usuario WHERE email = :email",
       [email]
     );
 
+    // Se existir, retorna erro
     const count = (check.rows?.[0] as any).COUNT;
     if (count > 0) {
       return res.status(400).json({ ok: false, error: "Email já registrado." });
     }
 
-    // Inserir usuário
+    // Insere o usuário
     const result = await connection.execute(
       `INSERT INTO usuario (nome, sobrenome, email, telefone, senha)
        VALUES (:nome, :sobrenome, :email, :telefone, :senha)
@@ -398,6 +402,7 @@ app.post("/api/login", async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
+    // Busca o usuário pelo email
     const result = await connection.execute("SELECT * FROM usuario WHERE email = :email", [email]);
     const user = result.rows?.[0] as any;
 
@@ -454,11 +459,13 @@ app.post("/api/institutions", async (req: Request, res: Response) => {
       [id_usuario]
     );
 
+    // Se não existir, retorna erro
     const userCount = (userCheck.rows?.[0] as any).USER_COUNT;
     if (userCount === 0) {
       return res.status(404).json({ ok: false, error: "Usuário não encontrado." });
     }
 
+    // Insere a instituição
     const result = await connection.execute(
       `INSERT INTO instituicao (nome, id_usuario)
         VALUES (:nome, :id_usuario)
@@ -472,6 +479,7 @@ app.post("/api/institutions", async (req: Request, res: Response) => {
 
     await connection.commit();
 
+    // Pega o ID gerado da instituição
     const outBinds = result.outBinds as { id: number[] };
     const instituicaoId = outBinds.id[0];
 
@@ -492,13 +500,16 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
+    // Busca as instituições
     let query = 'SELECT id_instituicao, nome, id_usuario FROM instituicao WHERE 1=1';
     const params: any[] = [];
 
+    //Se id_usuario for fornecido, filtra por ele
     if (id_usuario) {
       query += ' AND id_usuario = :id_usuario';
       params.push(id_usuario);
     }
+    //Se name for fornecido, filtra por ele
     if (name) {
         query += ' AND UPPER(nome) LIKE UPPER(:name)';
       params.push(`%${name}%`);
@@ -507,6 +518,7 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
     query += ' ORDER BY nome';
     const result = await connection.execute(query, params);
     
+    // Mapeia resultados para formato padronizado
     const institutions = (result.rows || []).map((row: any) => ({
       ID_INSTITUICAO: row.ID_INSTITUICAO,
       NOME: row.NOME,
@@ -571,7 +583,7 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, error: "Código da disciplina já existe." });
     }
 
-    
+    // Insere a disciplina
     const result = await connection.execute(
       `INSERT INTO disciplina (nome, codigo, periodo, apelido)
         VALUES (:nome, :codigo, :periodo, :apelido)
@@ -588,7 +600,7 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
     const outBinds = result.outBinds as { id: number[] };
     const disciplinaId = outBinds.id[0];
 
-    
+    // Cria o relacionamento na tabela REL
     await connection.execute(
       `INSERT INTO rel (id_curso, id_disciplina)
         VALUES (:id_curso, :id_disciplina)`,
@@ -621,6 +633,7 @@ app.get("/api/subjects", async (req: Request, res: Response) => {
     let query = '';
     const params: any[] = [];
 
+    //Filtra se id_curso, nome e código foram fornecidos
     if (id_curso) {
 
       query = `
@@ -658,6 +671,7 @@ app.get("/api/subjects", async (req: Request, res: Response) => {
 
     const result = await connection.execute(query, params);
     
+    // Mapeia resultados para formato padronizado
     const subjects = (result.rows || []).map((row: any) => ({
       ID_DISCIPLINA: row.ID_DISCIPLINA,
       NOME: row.NOME,
@@ -712,6 +726,7 @@ app.post("/api/classes", async (req: Request, res: Response) => {
     
     const horariosJSON = JSON.stringify(schedule);
 
+    // Insere a turma
     const result = await connection.execute(
       `INSERT INTO turma (numero, apelido, horarios, local, id_disciplina)
         VALUES (:numero, :apelido, :horarios, :local, :id_disciplina)
@@ -801,6 +816,7 @@ app.get("/api/classes", async (req: Request, res: Response) => {
     `;
     const params: any[] = [];
 
+    //Filtra se id_disciplina e o código foram fornecidos
     if (id_disciplina) {
       query += ' AND id_disciplina = :id_disciplina';
       params.push(id_disciplina);
@@ -831,17 +847,14 @@ app.get("/api/classes", async (req: Request, res: Response) => {
         horariosArray = [];
       }
       
-      // Processar componentes_nota
+      // Processa os componentes de nota
       let componentesArray = [];
       try {
         if (row.COMPONENTES_NOTA) {
-          // Se for string, tenta parsear
           if (typeof row.COMPONENTES_NOTA === 'string') {
             componentesArray = JSON.parse(row.COMPONENTES_NOTA);
           } 
-          // Se já for objeto, cria uma cópia limpa
           else if (typeof row.COMPONENTES_NOTA === 'object' && row.COMPONENTES_NOTA !== null) {
-            // Fazer uma cópia profunda limpa do objeto
             componentesArray = JSON.parse(JSON.stringify(row.COMPONENTES_NOTA));
           }
         }
@@ -888,6 +901,7 @@ app.get("/api/classes/:id/grading-system", async (req: Request, res: Response) =
 
     connection = await getConnection();
 
+    // Busca o sistema de avaliação da turma
     const result = await connection.execute(
       `SELECT tipo_media, componentes_nota 
          FROM turma 
@@ -903,6 +917,7 @@ app.get("/api/classes/:id/grading-system", async (req: Request, res: Response) =
 
     let componentes = [];
 
+    // Processa componentes de nota
     try {
       if (row.COMPONENTES_NOTA) {
 
@@ -967,6 +982,7 @@ app.post("/api/students", async (req: Request, res: Response) => {
       return res.status(404).json({ ok: false, error: "Turma não encontrada." });
     }
 
+    // Insere o estudante
     const result = await connection.execute(
       `INSERT INTO estudante (nome, ra, id_turma)
         VALUES (:nome, :ra, :id_turma)
@@ -1004,6 +1020,7 @@ app.get("/api/students", async (req: Request, res: Response) => {
     let query = 'SELECT id_estudante, nome, ra, id_turma FROM estudante WHERE 1=1';
     const params: any[] = [];
 
+    //Filtra se id_turma, nome e ra foram fornecidos
     if (id_turma) {
       query += ' AND id_turma = :id_turma';
       params.push(id_turma);
@@ -1079,6 +1096,7 @@ app.post("/api/courses", async (req: Request, res: Response) => {
       return res.status(404).json({ ok: false, error: "Instituição não encontrada." });
     }
 
+    // Insere o curso
     const result = await connection.execute(
       `INSERT INTO curso (nome, periodo_curso, id_instituicao)
         VALUES (:nome, :periodo_curso, :id_instituicao)
@@ -1122,6 +1140,7 @@ app.get("/api/courses", async (req: Request, res: Response) => {
     `;
     const params: any[] = [];
 
+    //Filtra se id_instituicao, nome e período foram fornecidos
     if (id_instituicao) {
       query += ' AND c.id_instituicao = :id_instituicao';
       params.push(id_instituicao);
@@ -1186,6 +1205,7 @@ app.post("/api/classes/:id/grading-system", async (req: Request, res: Response) 
 
     connection = await getConnection();
 
+    // Atualiza o sistema de avaliação da turma
     await connection.execute(
       `UPDATE turma
           SET tipo_media = :tipo_media,
@@ -1239,7 +1259,7 @@ app.post("/api/student-grades", async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
-    // Insere ou atualiza a nota na nova tabela nota_estudante
+    // Insere ou atualiza a nota na tabela nota_estudante
     await connection.execute(
       `MERGE INTO nota_estudante n
        USING DUAL
@@ -1335,6 +1355,7 @@ app.post("/api/save-calculated-averages", async (req: Request, res: Response) =>
 
     connection = await getConnection();
 
+    // Insere ou atualiza cada média na tabela media_calculada
     for (const avg of averages) {
       await connection.execute(
         `MERGE INTO media_calculada USING DUAL
@@ -1378,6 +1399,7 @@ app.get("/api/calculated-averages", async (req: Request, res: Response) => {
 
     connection = await getConnection();
 
+    // Busca as médias calculadas da turma
     const result = await connection.execute(
       `SELECT id_estudante, media, tipo_media 
        FROM media_calculada 
@@ -1413,11 +1435,11 @@ app.get("/api/calculated-averages", async (req: Request, res: Response) => {
 //  Rotas estáticas
 // ===================================================
 app.get("/", (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, "htmls", "index.html"));
+  res.sendFile(path.join(PUBLIC_DIR, "htmls", "index.html"));  // Página inicial
 });
 
 app.get("/:page", (req, res) => {
-  const page = path.join(PUBLIC_DIR, "htmls", `${req.params.page}.html`);
+  const page = path.join(PUBLIC_DIR, "htmls", `${req.params.page}.html`);     // Página solicitada
   fs.existsSync(page) ? res.sendFile(page) : res.status(404).send("Página não encontrada");
 });
 
@@ -1507,15 +1529,17 @@ app.post("/api/verify-token", async (req: Request, res: Response) => {
     if (!email || !token) return res.status(400).json({ ok: false, error: "Email e token são obrigatórios." });
 
     connection = await getConnection();
+    // Busca o token e expiração do usuário
     const result = await connection.execute("SELECT token_recuperacao, expira_em FROM usuario WHERE email = :email", [email]);
     const row = result.rows?.[0] as any;
     if (!row || !row.TOKEN_RECUPERACAO) return res.status(404).json({ ok: false, error: "Token não encontrado para esse usuário." });
 
     const storedToken = row.TOKEN_RECUPERACAO;
-    const expiresAt = row.EXPIRA_EM; // should be JS Date object
+    const expiresAt = row.EXPIRA_EM;
 
     if (storedToken !== token) return res.status(401).json({ ok: false, error: "Token inválido." });
 
+    // Verifica expiração
     const now = new Date();
     if (expiresAt && expiresAt instanceof Date && expiresAt < now) {
       return res.status(401).json({ ok: false, error: "Token expirou." });
@@ -1540,6 +1564,7 @@ app.post("/api/reset-password", async (req: Request, res: Response) => {
     if (!email || !token || !newPassword) return res.status(400).json({ ok: false, error: "Email, token e nova senha são obrigatórios." });
 
     connection = await getConnection();
+    // Busca o token e expiração do usuário
     const result = await connection.execute("SELECT token_recuperacao, expira_em FROM usuario WHERE email = :email", [email]);
     const row = result.rows?.[0] as any;
     if (!row || !row.TOKEN_RECUPERACAO) return res.status(404).json({ ok: false, error: "Token não encontrado." });
@@ -1549,6 +1574,7 @@ app.post("/api/reset-password", async (req: Request, res: Response) => {
 
     if (storedToken !== token) return res.status(401).json({ ok: false, error: "Token inválido." });
 
+    // Verifica expiração
     if (expiresAt && expiresAt instanceof Date && expiresAt < new Date()) {
       return res.status(401).json({ ok: false, error: "Token expirou." });
     }
@@ -1606,7 +1632,7 @@ app.delete('/api/institutions/:id', async (req: Request, res: Response) => {
       });
     }
 
-    // ✅ VALIDAÇÃO: Verifica se tem cursos vinculados
+    // Verifica se tem cursos vinculados
     const coursesCheck = await connection.execute(
       "SELECT COUNT(*) AS course_count FROM curso WHERE id_instituicao = :id_instituicao",
       [id]
@@ -1663,7 +1689,7 @@ app.delete('/api/courses/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ ok: false, error: "Curso não encontrado." });
     }
 
-    // ✅ VALIDAÇÃO: Verifica se tem disciplinas vinculadas
+    // Verifica se tem disciplinas vinculadas
     const subjectsCheck = await connection.execute(
       `SELECT COUNT(*) AS subject_count 
        FROM disciplina d
@@ -1722,12 +1748,13 @@ app.delete('/api/subjects/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ ok: false, error: "Disciplina não encontrada." });
     }
 
-    // ✅ VALIDAÇÃO: Verifica se tem turmas vinculadas
+    // Verifica se tem turmas vinculadas
     const classesCheck = await connection.execute(
       "SELECT COUNT(*) AS class_count FROM turma WHERE id_disciplina = :id_disciplina",
       [id]
     );
     
+    // Verifica se tem turmas vinculadas
     const classCount = (classesCheck.rows?.[0] as any).CLASS_COUNT;
     if (classCount > 0) {
       return res.status(400).json({ 
@@ -1784,7 +1811,7 @@ app.delete('/api/classes/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ ok: false, error: "Turma não encontrada." });
     }
 
-    // ✅ VALIDAÇÃO: Verifica se tem estudantes vinculados
+    // Verifica se tem estudantes vinculados
     const studentsCheck = await connection.execute(
       "SELECT COUNT(*) AS student_count FROM estudante WHERE id_turma = :id_turma",
       [id]
@@ -1816,4 +1843,5 @@ app.delete('/api/classes/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Inicia o servidor
 startServer();
