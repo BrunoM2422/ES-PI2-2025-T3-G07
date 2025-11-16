@@ -444,6 +444,16 @@ tableBody.addEventListener("click", (e) => {
     renderTable();
 });
 
+//Para deletar a instituição
+tableBody.addEventListener("click", async (e) => {
+    if (e.target.classList.contains('delete-inst')) {
+        e.stopPropagation();
+        const index = parseInt(e.target.dataset.index);
+        await excluirInstituicaoPeloIndice(index);
+        return;
+    }
+});
+
 // master-delete handler no header
 tableHeader.addEventListener("click", (e) => {
     const elementoClicado = e.target;
