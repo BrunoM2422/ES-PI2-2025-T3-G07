@@ -320,7 +320,12 @@ async function renderTable() {
         });
 
         td.addEventListener("blur", () => {
-            const newValue = td.textContent.trim();
+            let newValue = td.textContent.trim().replace(",", ".");  // aceita 8,5 também
+            let number = parseFloat(newValue);
+
+            if (isNaN(number)) {
+                number = 0; // caso digite algo inválido
+            }
             // rowIndex: calcular posição correta considerando header presence
             // usamos parentElement.rowIndex-1 como antes
             const rowIndex = td.parentElement.rowIndex - 1;
@@ -330,6 +335,12 @@ async function renderTable() {
                 cls.students[rowIndex].grades[compIndex] = parseFloat(newValue) || 0;
             }
             // não apagamos notas; não re-render completo para não perder foco
+            
+            // salvar como float real
+            cls.students[rowIndex].grades[compIndex] = number;
+
+            // formatar com 2 casas decimais SEM rerenderizar
+            td.textContent = number.toFixed(2);
         });
     });
 
