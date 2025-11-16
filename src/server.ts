@@ -791,6 +791,49 @@ app.post("/api/classes", async (req: Request, res: Response) => {
 });
 
 // ===================================================
+//  Deletar Turma
+// ===================================================
+app.delete('/api/classes/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "ID da turma é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se a turma existe
+    const classCheck = await connection.execute(
+      "SELECT COUNT(*) AS class_count FROM turma WHERE id_turma = :id_turma",
+      [id]
+    );
+    
+    const classCount = (classCheck.rows?.[0] as any).CLASS_COUNT;
+    if (classCount === 0) {
+      return res.status(404).json({ ok: false, error: "Turma não encontrada." });
+    }
+
+    // Deleta a turma (CASCADE vai deletar alunos, notas e médias)
+    await connection.execute(
+      "DELETE FROM turma WHERE id_turma = :id_turma",
+      [id]
+    );
+
+    await connection.commit();
+
+    console.log(`✅ Turma ID ${id} deletada com sucesso`);
+    res.json({ ok: true, message: "Turma deletada com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar turma:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar turma." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// ===================================================
 //  Deletar Disciplina
 // ===================================================
 app.delete('/api/subjects/:id', async (req: Request, res: Response) => {

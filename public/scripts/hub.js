@@ -1184,25 +1184,72 @@ function excluirAlunos(cls) {
 // =======================
 // Excluir Turmas
 // =======================
-function excluirTurmas(subj) {
+async function excluirTurmas(subj) {
     const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
     if (checkboxesSelected.length === 0) {
         alert("Por favor, selecione pelo menos uma turma para remover.");
         return;
     }
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} turma(s)?`)) return;
+    
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} turma(s)?\n\n⚠️ ATENÇÃO: Todos os alunos, notas e médias vinculadas a esta(s) turma(s) também serão removidos!`)) {
+        return;
+    }
 
     const indicesParaRemover = [];
+    const idsParaRemover = [];
+    
     checkboxesSelected.forEach(cb => {
         const linha = cb.closest('tr');
         const index = parseInt(linha.dataset.index);
         indicesParaRemover.push(index);
+        
+        // Pega o ID da turma do objeto
+        const turma = subj.classes[index];
+        if (turma && turma.id_turma) {
+            idsParaRemover.push(turma.id_turma);
+        }
     });
 
-    subj.classes = subj.classes.filter((c, i) => !indicesParaRemover.includes(i));
-    renderTable();
-}
+    // Mostra indicador de carregamento
+    const loadingMsg = document.createElement('div');
+    loadingMsg.textContent = 'Excluindo turmas...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
 
+    try {
+        let erros = [];
+        
+        for (const id_turma of idsParaRemover) {
+            const response = await fetch(`/api/classes/${id_turma}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.ok) {
+                console.error(`Erro ao deletar turma ${id_turma}:`, result.error);
+                erros.push(`Turma ID ${id_turma}: ${result.error || "Erro desconhecido"}`);
+            }
+        }
+
+        if (erros.length > 0) {
+            alert("Algumas turmas não puderam ser deletadas:\n" + erros.join("\n"));
+        } else {
+            alert("Turma(s) deletada(s) com sucesso!");
+        }
+
+        // Recarrega os dados para refletir as mudanças
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        console.error("Erro ao deletar turmas:", err);
+        alert("Erro ao deletar turmas. Verifique sua conexão.");
+    } finally {
+        // Remove indicador de carregamento
+        document.body.removeChild(loadingMsg);
+    }
+}
 // =======================
 // Excluir Disciplinas
 // =======================
