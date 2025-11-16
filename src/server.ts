@@ -531,33 +531,48 @@ app.get('/api/institutions', async (req: Request, res: Response) => {
   }
 });
 
-// Deletar instituição
+
+// ===================================================
+//  Deletar Instituição 
+// ===================================================
 app.delete('/api/institutions/:id', async (req: Request, res: Response) => {
   let connection;
   try {
     const { id } = req.params;
-    const { id_usuario } = req.body; // Assume id_usuario is sent in body for authorization
-
-    if (!id_usuario) {
-      return res.status(400).json({ ok: false, error: "Usuário não autenticado." });
+    // ✅ NÃO pega id_usuario do body
+    
+    if (!id) { // ✅ Só verifica se o ID existe
+      return res.status(400).json({ 
+        ok: false, 
+        error: "ID da instituição é obrigatório." 
+      });
     }
 
     connection = await getConnection();
 
-    // Check if institution belongs to user
-    const check = await connection.execute(
-      "SELECT COUNT(*) AS count FROM instituicao WHERE id_instituicao = :id AND id_usuario = :id_usuario",
-      [id, id_usuario]
+    // ✅ Só verifica se a instituição existe
+    const institutionCheck = await connection.execute(
+      "SELECT COUNT(*) AS institution_count FROM instituicao WHERE id_instituicao = :id_instituicao",
+      [id] // ✅ Só usa o ID
     );
-    const count = (check.rows?.[0] as any).COUNT;
-    if (count === 0) {
-      return res.status(404).json({ ok: false, error: "Instituição não encontrada ou não pertence ao usuário." });
+    
+    const institutionCount = (institutionCheck.rows?.[0] as any).INSTITUTION_COUNT;
+    if (institutionCount === 0) {
+      return res.status(404).json({ 
+        ok: false, 
+        error: "Instituição não encontrada." 
+      });
     }
 
-    // Delete (CASCADE will handle related records)
-    await connection.execute("DELETE FROM instituicao WHERE id_instituicao = :id", [id]);
+    // ✅ Deleta direto
+    await connection.execute(
+      "DELETE FROM instituicao WHERE id_instituicao = :id_instituicao",
+      [id]
+    );
+
     await connection.commit();
 
+    console.log(`✅ Instituição ID ${id} deletada com sucesso`);
     res.json({ ok: true, message: "Instituição deletada com sucesso." });
   } catch (err) {
     console.error("❌ Erro ao deletar instituição:", err);

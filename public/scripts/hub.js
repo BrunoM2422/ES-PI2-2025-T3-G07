@@ -71,7 +71,7 @@ async function renderTable() {
             `<tr data-index="${idx}" data-type="institution">
                 <td>${inst.name}</td>
                 <td class="delete-action">
-                <button type="button" id="delete-inst" data-index="${idx}"">
+                <button type="button" class="delete-inst" data-index="${idx}">
                 X
                 </button>
                 </td>
@@ -1870,11 +1870,11 @@ async function carregarInstituicoesECursos() {
             // Carrega os alunos para todas as turmas
             await carregarAlunosParaTurmas();
 
-            // Carrega os componentes de nota para todas as turmas
-            await carregarComponentesNota();
+            // Carrega componentes de nota corretamente
+            await carregarComponentesNotaParaTodasTurmas();
 
-            // Carrega as notas dos estudantes para todas as turmas
-            await carregarNotasEstudantes();
+            // Carrega notas dos estudantes corretamente
+            await carregarNotasParaTodasTurmas();
             
         } else {
             data.institutions = [];
@@ -1888,6 +1888,48 @@ async function carregarInstituicoesECursos() {
         alert("Erro ao carregar dados. Verifique sua conexão.");
     }
 }
+
+async function carregarComponentesNotaParaTodasTurmas() {
+    try {
+        console.log("📄 Carregando componentes de nota para todas as turmas...");
+        for (let inst of data.institutions) {
+            for (let course of inst.courses || []) {
+                for (let subject of course.subjects || []) {
+                    for (let cls of subject.classes || []) {
+                        if (cls && cls.id_turma) {
+                            await carregarComponentesNota(cls);
+                        }
+                    }
+                }
+            }
+        }
+        console.log("✅ Componentes de nota carregados");
+    } catch (err) {
+        console.error("❌ Erro ao carregar componentes de nota:", err);
+    }
+}
+
+async function carregarNotasParaTodasTurmas() {
+    try {
+        console.log("📄 Carregando notas para todas as turmas...");
+        for (let inst of data.institutions) {
+            for (let course of inst.courses || []) {
+                for (let subject of course.subjects || []) {
+                    for (let cls of subject.classes || []) {
+                        if (cls && cls.id_turma) {
+                            await carregarNotasEstudantes(cls);
+                            await carregarMediasDoBanco(cls);
+                        }
+                    }
+                }
+            }
+        }
+        console.log("✅ Notas carregadas");
+    } catch (err) {
+        console.error("❌ Erro ao carregar notas:", err);
+    }
+}
+
 
 async function carregarCursosParaInstituicoes() {
     try {
@@ -1987,15 +2029,78 @@ async function excluirCurso(inst) {
     }
 }
 
-function excluirInstituicaoPeloIndice(index) {
+
+tableBody.addEventListener('click', function(event) {
+    // Verifica se o elemento clicado tem a CLASSE 'delete-inst'
+    if (event.target.classList.contains('delete-inst')) {
+        
+        // Pega o índice guardado no data-attribute
+        const indexParaExcluir = event.target.dataset.index;
+
+        // Chama sua função de excluir
+        excluirInstituicaoPeloIndice(indexParaExcluir);
+    }
+});
+
+async function excluirInstituicaoPeloIndice(index) {
     const inst = data.institutions[index];
-    if (!inst) return; 
-    if (confirm(`Tem certeza que deseja excluir a instituição "${inst.name}"?`)) {
+    if (!inst) {
+        alert("Instituição não encontrada.");
+        return;
+    }
+    
+    if (!inst.id_instituicao) {
+        alert("Instituição sem ID válido.");
+        return;
+    }
+    
+    if (!confirm(`Tem certeza que deseja excluir a instituição "${inst.name}"?\n\n⚠️ ATENÇÃO: Todos os cursos, disciplinas, turmas e alunos vinculados a esta instituição também serão removidos!`)) {
+        return;
+    }
+
+    // Mostra indicador de carregamento
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'loading-delete-inst';
+    loadingMsg.textContent = 'Excluindo instituição...';
+    loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:9999;font-weight:bold;';
+    document.body.appendChild(loadingMsg);
+
+    try {
+        const response = await fetch(`/api/institutions/${inst.id_instituicao}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok || !result.ok) {
+            console.error("Erro ao deletar instituição:", result.error);
+            alert("Erro ao deletar instituição: " + (result.error || "Erro desconhecido"));
+            return;
+        }
+
+        console.log("✅ Instituição deletada do banco de dados");
+        
+        // Remove do array local
         data.institutions.splice(index, 1);
-        renderTable();
+        
+        // ✅ CRÍTICO: Reseta o path para o nível 0 (lista de instituições)
+        path = [];
+        
+        alert("Instituição deletada com sucesso!");
+        
+        // Recarrega a tabela
+        await renderTable();
+        
+    } catch (err) {
+        console.error("❌ Erro ao deletar instituição:", err);
+        alert("Erro de conexão ao deletar instituição. Verifique sua conexão.");
+    } finally {
+        // Remove indicador de carregamento
+        const loading = document.getElementById('loading-delete-inst');
+        if (loading) document.body.removeChild(loading);
     }
 }
-
 // =======================
 // Inicialização
 // =======================

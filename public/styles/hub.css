@@ -507,7 +507,7 @@ textarea::placeholder {
     text-align: center;
 }
 
-#delete-inst{
+.delete-inst{
     background: none;
     border: none;
     color: red;
