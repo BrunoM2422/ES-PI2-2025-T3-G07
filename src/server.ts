@@ -1154,6 +1154,45 @@ app.get("/api/courses", async (req: Request, res: Response) => {
   }
 });
 
+//  Deletar Curso
+app.delete('/api/courses/:id', async (req: Request, res: Response) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "ID do curso é obrigatório." });
+    }
+
+    connection = await getConnection();
+
+    // Verifica se o curso existe
+    const courseCheck = await connection.execute(
+      "SELECT COUNT(*) AS course_count FROM curso WHERE id_curso = :id_curso",
+      [id]
+    );
+    
+    const courseCount = (courseCheck.rows?.[0] as any).COURSE_COUNT;
+    if (courseCount === 0) {
+      return res.status(404).json({ ok: false, error: "Curso não encontrado." });
+    }
+
+    // Deleta o curso (CASCADE vai deletar disciplinas, turmas, alunos, etc.)
+    await connection.execute(
+      "DELETE FROM curso WHERE id_curso = :id_curso",
+      [id]
+    );
+
+    await connection.commit();
+
+    res.json({ ok: true, message: "Curso deletado com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro ao deletar curso:", err);
+    res.status(500).json({ ok: false, error: "Erro interno ao deletar curso." });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
 // ===================================================
 //  Sistema de Avaliação (CRIA E CONSULTA)

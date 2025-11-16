@@ -1884,27 +1884,60 @@ async function carregarCursosParaInstituicoes() {
     }
 }
 
-function excluirCurso(inst) { 
+async function excluirCurso(inst) { 
     const checkboxesSelected = tableBody.querySelectorAll('.solo-delete:checked');
     if (checkboxesSelected.length === 0) {
         alert("Por favor, selecione pelo menos um curso para remover.");
         return;
     }
 
-    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} curso(s)?`)) {
+    if (!confirm(`Você tem certeza que quer remover ${checkboxesSelected.length} curso(s)? `)) {
         return;
     }
 
     const indicesParaRemover = [];
+    const idsParaRemover = [];
+    
     checkboxesSelected.forEach(cb => {
         const linha = cb.closest('tr');
         const index = parseInt(linha.dataset.index);
         indicesParaRemover.push(index);
+
+        const curso = inst.courses[index];
+        if (curso && curso.id_curso) {
+            idsParaRemover.push(curso.id_curso);
+        }
     });
 
-    inst.courses = inst.courses.filter((c, i) => !indicesParaRemover.includes(i));
+    try {
+        let erros = [];
+        
+        for (const id_curso of idsParaRemover) {
+            const response = await fetch(`/api/courses/${id_curso}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
 
-    renderTable();
+            const result = await response.json();
+            
+            if (!response.ok || !result.ok) {
+                console.error(`Erro ao deletar curso ${id_curso}:`, result.error);
+                erros.push(`Curso ID ${id_curso}: ${result.error || "Erro desconhecido"}`);
+            }
+        }
+
+        if (erros.length > 0) {
+            alert("Alguns cursos não puderam ser deletados:\n" + erros.join("\n"));
+        } else {
+            alert("Curso(s) deletado(s) com sucesso!");
+        }
+
+        await carregarInstituicoesECursos();
+        
+    } catch (err) {
+        console.error("Erro ao deletar cursos:", err);
+        alert("Erro ao deletar cursos. Verifique sua conexão.");
+    }
 }
 
 function excluirInstituicaoPeloIndice(index) {
