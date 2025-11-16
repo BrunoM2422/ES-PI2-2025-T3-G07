@@ -263,8 +263,7 @@ async function initializeDatabase() {
             id_auditoria NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             data DATE,
             hora TIMESTAMP,
-            id_turma NUMBER,
-            CONSTRAINT fk_auditoria_turma FOREIGN KEY (id_turma) REFERENCES turma(id_turma) ON DELETE SET NULL
+            id_turma NUMBER
           )';
       EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
       END;
