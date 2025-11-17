@@ -101,10 +101,12 @@ async function renderTable() {
         gradingDiv = document.createElement("div");
         gradingDiv.id = "grading-div";
         document.getElementById("content").appendChild(gradingDiv);
-        const btnDelete = document.createElement("button");
+        
 
-        gradingDiv.appendChild(btnDelete);
-        if ((inst.subjects || []).length > 0) {
+        
+        if ((inst.courses || []).length > 0) {
+            const btnDelete = document.createElement("button");
+            gradingDiv.appendChild(btnDelete);
             btnDelete.id = "delete-selected";
             btnDelete.textContent = "- Excluir Curso";
             btnDelete.onclick = () => excluirCurso(inst);
