@@ -552,10 +552,10 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
   try {
     const { name, code, period, nickname, id_curso } = req.body;
 
-    console.log("📥 Dados recebidos para disciplina:", { name, code, period, nickname,id_curso });
+    console.log("📥 Dados recebidos para disciplina:", { name, code, period, nickname, id_curso });
 
     if (!name?.trim() || !code?.trim() || !period || !id_curso) {
-      return res.status(400).json({ ok: false, error: "Nome, código, período  e curso são obrigatórios." });
+      return res.status(400).json({ ok: false, error: "Nome, código, período e curso são obrigatórios." });
     }
     if (period < 1 || period > 12) {
       return res.status(400).json({ ok: false, error: "Período deve estar entre 1 e 12." });
@@ -573,29 +573,21 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
       return res.status(404).json({ ok: false, error: "Curso não encontrado." });
     }
 
-    // Obtém o ID do usuário dono da instituição do curso
-    const userCheck = await connection.execute(
-      `SELECT i.id_usuario
-       FROM instituicao i
-       INNER JOIN curso c ON i.id_instituicao = c.id_instituicao
-       WHERE c.id_curso = :id_curso`,
-      [id_curso]
-    );
-    const userId = (userCheck.rows?.[0] as any).ID_USUARIO;
-
-    // Verifica se o código já existe para este usuário
     const codeCheck = await connection.execute(
-      `SELECT COUNT(*) AS code_count
+      `SELECT COUNT(*) AS code_count 
        FROM disciplina d
        INNER JOIN rel r ON d.id_disciplina = r.id_disciplina
-       INNER JOIN curso c ON r.id_curso = c.id_curso
-       INNER JOIN instituicao i ON c.id_instituicao = i.id_instituicao
-       WHERE UPPER(d.codigo) = UPPER(:codigo) AND i.id_usuario = :id_usuario`,
-      { codigo: code, id_usuario: userId }
+       WHERE r.id_curso = :id_curso 
+       AND UPPER(d.codigo) = UPPER(:codigo)`,
+      { id_curso, codigo: code }
     );
+    
     const codeCount = (codeCheck.rows?.[0] as any).CODE_COUNT;
     if (codeCount > 0) {
-      return res.status(400).json({ ok: false, error: "Código da disciplina já existe para este usuário." });
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Já existe uma disciplina com este código neste curso." 
+      });
     }
 
     // Insere a disciplina
@@ -635,7 +627,6 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
     if (connection) await connection.close();
   }
 });
-
 
 // Consulta disciplinas
 app.get("/api/subjects", async (req: Request, res: Response) => {
