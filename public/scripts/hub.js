@@ -102,12 +102,12 @@ async function renderTable() {
         gradingDiv.id = "grading-div";
         document.getElementById("content").appendChild(gradingDiv);
         const btnDelete = document.createElement("button");
-        btnDelete.id = "delete-selected";
-        btnDelete.textContent = "- Excluir Curso";
-        btnDelete.onclick = () => excluirCurso(inst);
+
         gradingDiv.appendChild(btnDelete);
         if ((inst.subjects || []).length > 0) {
-            ////PRECISA DE ATENÇÃO E MUDANÇAS
+            btnDelete.id = "delete-selected";
+            btnDelete.textContent = "- Excluir Curso";
+            btnDelete.onclick = () => excluirCurso(inst);
         }
     }
 
@@ -301,9 +301,12 @@ async function renderTable() {
         noRecords.textContent = "Nenhum registro encontrado.";
     }
 
-    // after render: attach listeners for grade-cells and component headers
+    // Após renderizar a tabela, conectamos os eventos responsáveis por permitir edição das notas
+    // e manipulação dos componentes de avaliação.
 
-    // grade-cell editing (stable)
+
+
+    // Lógica de edição das células de nota (focus → registrar valor, blur → salvar, Enter → finalizar edição)
     tableBody.querySelectorAll("td.grade-cell").forEach(td => {
         td.addEventListener("focus", () => {
             td.dataset.original = td.textContent.trim();
@@ -317,7 +320,12 @@ async function renderTable() {
         });
 
         td.addEventListener("blur", () => {
-            const newValue = td.textContent.trim();
+            let newValue = td.textContent.trim().replace(",", ".");  // aceita 8,5 também
+            let number = parseFloat(newValue);
+
+            if (isNaN(number)) {
+                number = 0; // caso digite algo inválido
+            }
             // rowIndex: calcular posição correta considerando header presence
             // usamos parentElement.rowIndex-1 como antes
             const rowIndex = td.parentElement.rowIndex - 1;
@@ -327,10 +335,17 @@ async function renderTable() {
                 cls.students[rowIndex].grades[compIndex] = parseFloat(newValue) || 0;
             }
             // não apagamos notas; não re-render completo para não perder foco
+            
+            // salvar como float real
+            cls.students[rowIndex].grades[compIndex] = number;
+
+            // formatar com 2 casas decimais SEM rerenderizar
+            td.textContent = number.toFixed(2);
         });
     });
 
-    // component-header click (editar/remover componente)
+    // Header de componentes (nome da prova/trabalho):
+    // permite editar ou remover o componente ao clicar sobre o título
     document.querySelectorAll(".component-header").forEach(th => {
         th.addEventListener("click", () => {
             const compIndex = parseInt(th.dataset.index);
@@ -339,11 +354,11 @@ async function renderTable() {
         });
     });
 
-// --- Gerenciar checkboxes de edição de componentes ---
+// Controle dos toggles de edição: ativa edição somente das notas do componente selecionado
 const toggles = document.querySelectorAll(".edit-toggle");
 const allCells = document.querySelectorAll(".grade-cell");
 
-// Função helper: desabilita tudo
+// Função auxiliar: bloqueia edição de todas as células de nota
 function disableAllGradeCells() {
     allCells.forEach(td => td.setAttribute("contenteditable", "false"));
 }
@@ -358,7 +373,7 @@ toggles.forEach(toggle => {
     });
 
     toggle.addEventListener("change", () => {
-        // Se marcou um, desmarca todos os outros
+        // Garante que apenas um componente possa estar em modo de edição por vez
         if (toggle.checked) {
             toggles.forEach(t => {
                 if (t !== toggle) t.checked = false;
@@ -425,6 +440,7 @@ tableBody.addEventListener("click", (e) => {
         return;
     }
 
+    // Não navega se clicou em célula editável de nota
     if (elementoClicado.classList.contains("grade-cell") || elementoClicado.isContentEditable) {
         e.stopPropagation();
         return;
@@ -434,6 +450,7 @@ tableBody.addEventListener("click", (e) => {
     if (!row) return;
     if (!row.dataset.type) return;
 
+    // Atualiza o path com base no tipo da linha
     const idx = parseInt(row.dataset.index);
     const type = row.dataset.type;
 
@@ -454,7 +471,7 @@ tableBody.addEventListener("click", async (e) => {
     }
 });
 
-// master-delete handler no header
+// Checkbox no header que marca/desmarca todos os alunos
 tableHeader.addEventListener("click", (e) => {
     const elementoClicado = e.target;
     if (elementoClicado.classList.contains('master-delete')) {
@@ -466,6 +483,7 @@ tableHeader.addEventListener("click", (e) => {
     }
 });
 
+// Volta um nível no path
 backBtn.onclick = () => {
     path.pop();
     renderTable();
@@ -1114,13 +1132,13 @@ async function csvData(csvText) {
                 // 📤 ENVIA PARA O BACKEND
                 // ============================
                 try {
-                    const response = await fetch("/api/students", {  // ✅ ENDPOINT CORRETO
+                    const response = await fetch("/api/students", {  // Endpoint pra qual é enviado
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             name: name,
                             ra: ra,
-                            id_turma: cls.id_turma  // ✅ USA O ID CORRETO DA TURMA
+                            id_turma: cls.id_turma  // utilização do ID da turma
                         })
                     });
 
@@ -1169,6 +1187,7 @@ async function csvData(csvText) {
 // Exportar CSV
 // =======================
 function exportCSV(){
+    // Obtém a turma atual navegando pela estrutura de dados
     const cls = data.institutions[path[0]].courses[path[1]].subjects[path[2]].classes[path[3]];
     const students = cls.students || [];
 
@@ -1177,7 +1196,10 @@ function exportCSV(){
         return;
     }
 
+    //seprador utilizado no arquivo CSV
     const separator = ';';
+
+    // Cabeçalhos padrões
     let headers = ['Nome', 'RA'];
 
     if (cls.grading && cls.grading.components.length) {
@@ -1192,6 +1214,8 @@ function exportCSV(){
         let row = [];
         row.push(stu.name);
         row.push(stu.ra || "-");
+
+        // Adiciona as notas caso existam componentes cadastrados
         if (cls.grading && cls.grading.components.length) {
             cls.grading.components.forEach((comp, index) => {
                 const grade = stu.grades && stu.grades[index] !== undefined ? stu.grades[index] : 0;
@@ -1207,6 +1231,8 @@ function exportCSV(){
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.href = url;
+
+    // Define nome do arquivo usando o número da turma
     const clsId = cls.number || 'turma';
     link.download = `export_${clsId}.csv`;
     document.body.appendChild(link);
@@ -1221,6 +1247,7 @@ function exportCSV(){
 // 1 Salvar Instituição
 async function salvarInstituicaoNoBanco(nomeInstituicao) {
     try {
+        //Obtem o usuário logado
         const usuario = JSON.parse(localStorage.getItem("currentUser"));
         if (!usuario || !usuario.id_usuario) {
             alert("Usuário não autenticado.");
@@ -1436,10 +1463,14 @@ async function carregarComponentesNota(cls) {
         const result = await response.json();
         
         if (result.ok && Array.isArray(result.components)) {
+
+            // Garante estrutura de grading
             cls.grading = cls.grading || { 
                 type: cls.tipo_media || "Aritmética", 
                 components: [] 
             };
+
+            // Mapeia componentes vindos da API
             cls.grading.components = result.components.map(comp => ({
                 id_componente_nota: comp.ID_COMPONENTE_NOTA,
                 name: comp.NOME,
@@ -1459,6 +1490,7 @@ async function carregarNotasEstudantes(cls) {
         const result = await response.json();
         
         if (result.ok && Array.isArray(result.grades)) {
+
             // Inicializa grades para todos os estudantes
             cls.students.forEach(estudante => {
                 if (!estudante.grades) estudante.grades = {};
@@ -1480,6 +1512,8 @@ async function carregarNotasEstudantes(cls) {
 
 function configurarEdicaoNotas() {
     tableBody.querySelectorAll("td.grade-cell").forEach(td => {
+
+        //Salvar valor original ao "focar"
         td.addEventListener("focus", () => {
             td.dataset.original = td.textContent.trim();
         });
@@ -1498,10 +1532,12 @@ function configurarEdicaoNotas() {
     });
 }
 
+//Salva a nota alterada pelo usuário
 async function salvarNotaEmFoco(td) {
     const newValue = td.textContent.trim();
     const originalValue = td.dataset.original;
     
+    // Só salva se houve alteração
     if (newValue !== originalValue) {
         const rowIndex = td.parentElement.rowIndex - 1;
         const compIndex = parseInt(td.dataset.comp);
@@ -1511,7 +1547,7 @@ async function salvarNotaEmFoco(td) {
         
         const nota = parseFloat(newValue) || 0;
         
-        // Validação
+        // Validação da nota
         if (nota < 0 || nota > 10) {
             alert("Nota deve estar entre 0 e 10.");
             td.textContent = originalValue;
@@ -1548,6 +1584,7 @@ async function carregarMediasDoBanco(cls) {
         const result = await response.json();
         
         if (result.ok && Array.isArray(result.averages)) {
+            //Associação do aluno com sua média
             result.averages.forEach(avg => {
                 const aluno = cls.students.find(s => s.id_estudante === avg.ID_ESTUDANTE);
                 if (aluno) {
@@ -1636,6 +1673,7 @@ async function carregarTurmasParaDisciplinas() {
                         }
                         const result = await response.json();
                         if (result.ok && Array.isArray(result.classes)) {
+                            // Mapeia turmas recebidas
                             subject.classes = result.classes.map(turma => ({
                                 id_turma: turma.ID_TURMA,
                                 number: turma.NUMERO,
