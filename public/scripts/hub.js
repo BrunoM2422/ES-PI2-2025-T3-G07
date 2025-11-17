@@ -198,71 +198,98 @@ async function renderTable() {
         }
     }
 
-    // Nível 4 — Alunos da turma
-    else if (path.length === 4) {
-        const cls = data.institutions[path[0]].courses[path[1]].subjects[path[2]].classes[path[3]];
+  // Nível 4 — Alunos da turma
+else if (path.length === 4) {
 
-        if (!cls.grading) {
-            await carregarSistemaAvaliacao(cls);
-        }
+    const cls = data.institutions[path[0]]
+        .courses[path[1]]
+        .subjects[path[2]]
+        .classes[path[3]];
 
-        pageTitle.textContent = `Alunos da turma ${cls.number}`;
-        addBtn.textContent = "+ Adicionar Aluno";
-        backBtn.classList.remove("hidden");
-        csvBtn.classList.remove("hidden");
-        exportCsvBtn.classList.remove("hidden");
-        csvBtn.onclick = importCSV;
-        exportCsvBtn.onclick = exportCSV;
+    if (!cls.grading) {
+        await carregarSistemaAvaliacao(cls);
+    }
 
-        tableHeader.innerHTML = `<th class="delete-checkbox"><input type="checkbox" class="master-delete"></th><th>Nome</th><th>RA</th>`;
-        if (cls.grading && cls.grading.components.length) {
-            cls.grading.components.forEach((c, i) => {
-                tableHeader.innerHTML += `
-    <th class="component-header" data-index="${i}">
-        <input type="checkbox" class="edit-toggle" data-comp="${i}">
-        ${c.nickname}${cls.grading.type === "Ponderada" ? ` (${c.weight})` : ""}
-    </th>`;
+    pageTitle.textContent = `Alunos da turma ${cls.number}`;
+    addBtn.textContent = "+ Adicionar Aluno";
+    backBtn.classList.remove("hidden");
+    csvBtn.classList.remove("hidden");
+    exportCsvBtn.classList.remove("hidden");
+    csvBtn.onclick = importCSV;
+    exportCsvBtn.onclick = exportCSV;
 
-            });
-            tableHeader.innerHTML += `<th>Média</th>`;
-        }
+    // Cabeçalho da tabela
+    tableHeader.innerHTML =
+        `<th class="delete-checkbox"><input type="checkbox" class="master-delete"></th>
+         <th>Nome</th>
+         <th>RA</th>`;
 
-        rows = (cls.students || []).map((stu, idx) => {
-            let row = `<tr><td class="delete-checkbox"><input type="checkbox" class="solo-delete"></td><td>${stu.name}</td><td>${stu.ra || "-"}</td>`;
-            if (!stu.grades) stu.grades = [];
-            if (cls.grading && cls.grading.components.length) {
-                cls.grading.components.forEach((comp, i) => {
-                    const componente_id = `comp_${comp.id || i}`;
-                    const nota = stu.grades?.[componente_id] || 0;
-                    row += `<td contenteditable="false" data-comp="${i}" class="grade-cell">${nota}</td>
-`;
-                });
-                row += `<td>${stu.media !== undefined ? stu.media.toFixed(2) : "-"}</td>`;
-            }
-            row += "</tr>";
-            return row;
+    if (cls.grading && cls.grading.components.length) {
+        cls.grading.components.forEach((c, i) => {
+            tableHeader.innerHTML += `
+                <th class="component-header" data-index="${i}">
+                    <input type="checkbox" class="edit-toggle" data-comp="${i}">
+                    ${c.nickname}${cls.grading.type === "Ponderada" ? ` (${c.weight})` : ""}
+                </th>`;
         });
 
-        gradingDiv = document.createElement("div");
-        gradingDiv.id = "grading-div";
-        document.getElementById("content").appendChild(gradingDiv);
-        
-        if ((cls.students || []).length && !cls.grading) {
-            const btn = document.createElement("button");
-            const btnDelete = document.createElement("button");
+        tableHeader.innerHTML += `<th>Média</th>`;
+    }
 
+    // Linhas da tabela
+    rows = (cls.students || []).map((stu, idx) => {
+
+        let row = `
+            <tr>
+                <td class="delete-checkbox"><input type="checkbox" class="solo-delete"></td>
+                <td>${stu.name}</td>
+                <td>${stu.ra || "-"}</td>
+        `;
+
+        if (!stu.grades) stu.grades = [];
+
+        if (cls.grading && cls.grading.components.length) {
+            cls.grading.components.forEach((comp, i) => {
+                const componente_id = `comp_${comp.id || i}`;
+                const nota = stu.grades?.[componente_id] || 0;
+                row += `
+                    <td contenteditable="false" data-comp="${i}" class="grade-cell">${nota}</td>
+                `;
+            });
+
+            row += `<td>${stu.media !== undefined ? stu.media.toFixed(2) : "-"}</td>`;
+        }
+
+        row += "</tr>";
+        return row;
+    });
+
+    // DIV que recebe botões e controles
+    gradingDiv = document.createElement("div");
+    gradingDiv.id = "grading-div";
+    document.getElementById("content").appendChild(gradingDiv);
+
+
+    // ================================
+    //     MOSTRAR BOTÕES APENAS SE
+    //         EXISTE UM ALUNO
+    // ================================
+    const temAlunos = (cls.students || []).length > 0;
+
+    if (temAlunos) {
+
+        // Se ainda não tem definição de média → pode criar
+        if (!cls.grading) {
+            const btn = document.createElement("button");
             btn.id = "add-average";
             btn.textContent = "+ Adicionar Média";
             btn.onclick = () => escolherTipoMedia(cls);
             gradingDiv.appendChild(btn);
+        }
 
-            btnDelete.id = "delete-selected";
-            btnDelete.textContent = "- Excluir Alunos";
-            btnDelete.onclick = () => excluirAlunos(cls);
-            gradingDiv.appendChild(btnDelete);
-            
-        } else if (cls.grading) {
-        
+        // Se já existe média → mostrar edição e componentes
+        else if (cls.grading) {
+
             const mediaInfo = document.createElement("h3");
             mediaInfo.textContent = `Tipo de Média: ${cls.grading.type}`;
             gradingDiv.appendChild(mediaInfo);
@@ -279,7 +306,6 @@ async function renderTable() {
             addCompBtn.onclick = () => adicionarComponente(cls);
             gradingDiv.appendChild(addCompBtn);
 
-
             if (cls.grading.components.length) {
                 const calcBtn = document.createElement("button");
                 calcBtn.classList.add("btn-primary");
@@ -287,14 +313,21 @@ async function renderTable() {
                 calcBtn.onclick = () => calcularMedia(cls);
                 gradingDiv.appendChild(calcBtn);
             }
-            const btnDelete = document.createElement("button");
-            btnDelete.id = "delete-selected";
-            btnDelete.textContent = "- Excluir Alunos";
-            btnDelete.onclick = () => excluirAlunos(cls);
-            gradingDiv.appendChild(btnDelete);
         }
-         setTimeout(() => configurarEdicaoNotas(), 100);
+
+        // Botão excluir alunos (sempre aparece se houver alunos)
+        const btnDelete = document.createElement("button");
+        btnDelete.id = "delete-selected";
+        btnDelete.textContent = "- Excluir Alunos";
+        btnDelete.onclick = () => excluirAlunos(cls);
+        gradingDiv.appendChild(btnDelete);
     }
+
+    // habilitar edição das notas
+    setTimeout(() => configurarEdicaoNotas(), 100);
+}
+
+
 
     tableBody.innerHTML = rows.join("");
 
@@ -673,12 +706,16 @@ addBtn.onclick = () => {
                     }
                 }
                 
-                const subjects = subj.subjects || [];
-                const existeTurma = subjects.some(subject => subject.number && subject.number.toLowerCase() === number.toLowerCase());
-                if (existeTurma) {
-                    alert(`Já existe uma turma com o código/número "${number}" nesta disciplina.`);
-                    return false;
-                }
+                const classes = subj.classes || [];
+                const existeTurma = classes.some(cls =>
+                    cls.number && cls.number.toLowerCase() === number.toLowerCase()
+                );
+
+                    if (existeTurma) {
+                        alert(`Já existe uma turma com o código/número "${number}" nesta disciplina.`);
+                        return false;
+                    }
+
 
                 // conflito de horário dentro da mesma instituição
                 const conflito = inst.courses.some(curso =>
