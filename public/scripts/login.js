@@ -2,6 +2,10 @@
             Pedro Henrique Ribeiro Silva Murta
 
 */
+
+//Implementa a lógica da página de login
+
+//Garantir que o HTML existe
 document.addEventListener('DOMContentLoaded', function() {
     // Pega os elementos do formulário
     const loginForm = document.querySelector('form');
@@ -58,9 +62,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return isValid;
     }
 
+    //Garantir que o email é válido
     function validateEmail() {
         const email = emailInput.value.trim();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
 
         if (email === '') {
             showFieldError(emailInput, 'Email é obrigatório');
@@ -74,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    //Validar a senha
     function validatePassword() {
         const password = passwordInput.value;
         if (password === '') {
@@ -84,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    //Função assincrona que verifica se houve compatibilidade de email e de senha
     async function performLogin(loginData) {
         try {
             setSubmitButtonState('loading', 'Entrando...');
@@ -153,6 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+
     function showFieldError(input, message) {
         clearFieldError(input);
         const errorDiv = document.createElement('div');
@@ -171,6 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
         input.style.borderColor = '';
     }
 
+    //Mostrar as mensagens
     function showMessage(message, type) {
         // remove mensagens existentes
         const existingMessage = document.querySelector('.login-message');
