@@ -1,6 +1,7 @@
 /* Autores: Pedro Henrique Ribeiro Silva Murta
             Gabriel Scolfaro de Azeredo
             Nicolas Mitjans Nunes
+            Bruno Lenitta Machado
 */
 
 // Aguarda o carregamento completo do DOM antes de executar

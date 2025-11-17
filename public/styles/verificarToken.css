@@ -1,4 +1,8 @@
-/*Design da parte principal da página*/
+/*
+    Autores:
+        Nicolas Mitjans Nunes
+*/
+
 #content {
     flex: 1;/*Ocupar todo o espaço vertical*/
     display: flex;

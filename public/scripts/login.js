@@ -1,5 +1,6 @@
 /* Autores: Gabriel Scolfaro de Azeredo
             Pedro Henrique Ribeiro Silva Murta
+            Bruno Lenitta Machado
 
 */
 
