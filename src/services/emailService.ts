@@ -1,3 +1,5 @@
+// Autor: Nícolas Mitjans Nunes
+
 import nodemailer from "nodemailer";
 
 export async function enviarEmailRecuperacao(destinatario: string, token: string) {

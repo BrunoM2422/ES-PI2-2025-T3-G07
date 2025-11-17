@@ -1,6 +1,5 @@
 /* Autores: 
             Nicolas Mitjans Nunes
-            Pedro Henrique Ribeiro Silva Murta
 */
 
 /*

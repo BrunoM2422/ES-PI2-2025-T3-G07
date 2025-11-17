@@ -1,6 +1,7 @@
 /*
     Autores originais:
         Bruno Lenitta Machado
+        Gabriel Scolfaro
         Matheus Antony Lucas Lima
         Nicolas Mitjans Nunes
     Atualização: Sistema de Médias e Notas + Novos campos de disciplina e turma + componentes com apelido/descrição (2025)
@@ -1749,12 +1750,15 @@ async function carregarDisciplinasParaCursos() {
         
         for (let inst of data.institutions) {
             for (let course of inst.courses) {
+
+                //Ignora cursos sem ID
                 if (!course.id_curso) {
                     console.warn("Curso sem ID:", course);
                     continue;
                 }
                 
                 try {
+                    //Busca pelas disciplinas
                     const response = await fetch(`/api/subjects?id_curso=${course.id_curso}`);
                     
                     if (!response.ok) {
@@ -1766,6 +1770,8 @@ async function carregarDisciplinasParaCursos() {
                     
                     
                     if (result.ok && Array.isArray(result.subjects)) {
+
+                        //Mapeia as disciplinas
                         course.subjects = result.subjects.map(disciplina => ({
                             id_disciplina: disciplina.ID_DISCIPLINA,
                             name: disciplina.NOME,
@@ -1800,6 +1806,8 @@ async function carregarAlunosParaTurmas() {
             for (let course of inst.courses) {
                 for (let subject of course.subjects) {
                     for (let cls of subject.classes) {
+
+                        //Ignora turmas sem ID
                         if (!cls.id_turma) {
                             console.warn("Turma sem ID:", cls);
                             continue;
@@ -1812,6 +1820,8 @@ async function carregarAlunosParaTurmas() {
                             }
                             const result = await response.json();
                             if (result.ok && Array.isArray(result.students)) {
+
+                                //Mapeia alunos
                                 cls.students = result.students.map(aluno => ({
                                     id_estudante: aluno.ID_ESTUDANTE,
                                     name: aluno.NOME,
@@ -1846,13 +1856,14 @@ async function carregarAlunosParaTurmas() {
 
 async function carregarInstituicoesECursos() {
     try {
-        // Faz autenticação primeiro
+        // Faz autenticação do login primeiro
         if (!verificarAutenticacao()) return;
 
         const usuario = JSON.parse(localStorage.getItem("currentUser"));
         
         console.log("Carregando instituições para usuário:", usuario.id_usuario);
         
+        //Busca instituições do usuário
         const response = await fetch(`/api/institutions?id_usuario=${usuario.id_usuario}`);
         
         if (!response.ok) {
@@ -1902,6 +1913,7 @@ async function carregarInstituicoesECursos() {
             console.log("Nenhuma instituição encontrada");
         }
 
+        //Atualiza a tabela na tela
         renderTable();
 
     } catch (err) {
